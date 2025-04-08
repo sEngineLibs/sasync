@@ -4,31 +4,37 @@ A lightweight macro-based asynchronous programming model for Haxe, inspired by `
 
 ## Features
 
--   `@async` function transformation to run in a background thread.
--   `@await` marker for awaiting other `Promise<T>` functions.
--   Automatically generates `Promise<T>` return types.
 -   Works with `sys.thread` and `ElasticThreadPool` on threaded targets.
 -   Useful for IO-bound or CPU-bound async tasks.
+-   Custom metadata:
+    -   #### **`@async`**
+        Marks a function to be executed asynchronously. The function `<T>` will automatically return a `Promise<T>`. The body of the function will be run in a background thread. If an exception is thrown during execution, it will be captured and stored in the promise. If the function completes successfully, the result will be assigned to the promise.
+    -   #### **`@await`**
+        Marks an expression whose result should be awaited. The annotated expression must be a `Promise<T>`. At runtime, the current thread will wait for the result of the promise. If the awaited promise has an error, it will throw that error.
 
 ---
 
 ## Usage
 
-### 1. Include the source code in your project and build it in your `build.hxml`
+### 1. Add the library to your project
 
-Example:
+**build.hxml:**
+
 ```hxml
-sasync.hxml
--cp tests
--D analyzer-optimize
---main Tests
---interp
+-L sasync
+```
+
+**khafile.js:**
+
+```js
+project.addLibrary("sasync");
 ```
 
 ### 2. Annotate your class methods or modules functions with `@async` metadata
 
 ```haxe
 ...
+
     @async static function fetchData():String {
         @await tick();
         return "Data";
@@ -48,6 +54,7 @@ sasync.hxml
     trace('Received: $data');
 }
 ```
+
 > **Note:** You can use `@await` outside an `@async` function.
 
 ---
@@ -74,7 +81,7 @@ And returns a `Promise<T>` (injected automatically)
 
 ## Error Handling
 
-Exceptions thrown inside `@async` functions will be caught and re-thrown when `@await`:
+Exceptions thrown inside `@async` functions will be caught and re-thrown when awaited:
 
 ```haxe
 @async function mightFail():Void {

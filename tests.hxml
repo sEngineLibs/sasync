@@ -1,5 +1,5 @@
-sasync.hxml
 -cp tests
+-L sasync:0.0.8
 -D analyzer-optimize
 --main Tests
 --interp

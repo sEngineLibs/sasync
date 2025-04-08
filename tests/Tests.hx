@@ -3,22 +3,22 @@ package;
 class Tests {
 	public static function main() {
 		#if (target.threaded)
-		log("Start tests");
-
+		log("Start tests\n");
+		
 		@await testSimple();
 		var result = @await testReturn();
-		log('Return test: ' + result);
+		log('Return test: $result\n');
 
 		var nested = @await testNested();
-		log('Nested test: ' + nested);
+		log('Nested test: $nested\n');
 
 		try {
 			@await testError();
 		} catch (e)
-			log('Caught error: ' + e);
+			log('Caught error: $e\n');
 
 		var results = @await testParallel();
-		log('Parallel test: ' + results.join(", "));
+		log('Parallel test: $results\n');
 
 		@await testLoop();
 		@await testIfElse(true);
@@ -33,7 +33,7 @@ class Tests {
 	@async static function testSimple():Void {
 		log("Simple test...");
 		Sys.sleep(0.1);
-		log("Simple done.");
+		log("Simple done.\n");
 	}
 
 	@async static function testReturn():String {
@@ -54,7 +54,7 @@ class Tests {
 
 	@async static function testError():Void {
 		Sys.sleep(0.05);
-		throw "Something went wrong!";
+		throw "*some error message*";
 	}
 
 	@async static function testParallel():Array<Int> {
@@ -66,17 +66,17 @@ class Tests {
 
 	@async static function testLoop():Void {
 		for (i in 0...3) {
-			log('Loop step: ' + i);
+			log('Loop step: ' + i + (i == 2 ? "\n" : ""));
 			Sys.sleep(0.03);
 		}
 	}
 
 	@async static function testIfElse(flag:Bool):Void {
 		if (flag) {
-			log("Branch: TRUE");
+			log("Branch: TRUE\n");
 			Sys.sleep(0.02);
 		} else {
-			log("Branch: FALSE");
+			log("Branch: FALSE\n");
 			Sys.sleep(0.02);
 		}
 	}

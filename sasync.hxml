@@ -1,2 +1,0 @@
--cp src
---macro addGlobalMetadata("", "@:build(sasync.Async.build())", true, true, true)

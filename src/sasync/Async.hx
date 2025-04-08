@@ -1,15 +1,14 @@
 package sasync;
 
+#if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
 using haxe.macro.ExprTools;
 using haxe.macro.TypeTools;
 using haxe.macro.ComplexTypeTools;
-using sasync.Async;
 
 class Async<T> {
-	#if macro
 	macro public static function build():Array<Field> {
 		var fields = Context.getBuildFields();
 		for (field in fields)
@@ -21,11 +20,11 @@ class Async<T> {
 		switch (field.kind) {
 			case FFun(f):
 				if (f.expr != null) {
-					f.expr = f.expr.transformAwait();
+					f.expr = transformAwait(f.expr);
 					for (m in field.meta)
 						if (m.name == "async") {
 							if (f.ret != null)
-								f.buildAsync();
+								buildAsync(f);
 							else
 								Context.error("Async functions must be type-hinted", field.pos);
 							break;
@@ -39,7 +38,7 @@ class Async<T> {
 	static function buildAsync(f:Function) {
 		var t = f.ret;
 		f.ret = macro :sasync.Promise<$t>;
-		f.expr = f.expr.transformJob().transformAsync(t);
+		f.expr = transformAsync(transformJob(f.expr), t);
 	}
 
 	static function transformAwait(expr:Expr):Expr {
@@ -75,5 +74,5 @@ class Async<T> {
 			return p;
 		};
 	}
-	#end
 }
+#end
