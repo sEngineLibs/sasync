@@ -1,11 +1,11 @@
 {
     "name": "sasync",
-    "url": "https://github.com/sEngineLibs/sAsync",
+    "url": "https://github.com/sEngineLibs/sasync",
     "license": "Apache",
     "tags": ["async", "await", "sugar"],
     "version": "0.0.3",
     "classPath": "src",
     "description": "A lightweight macro-based asynchronous programming model for Haxe, inspired by `async / await` syntax found in modern languages.",
     "contributors": ["smoothie"],
-    "releasenote": "Patch for Kha"
+    "releasenote": "Add await timeout and fix async function transformation"
 }
