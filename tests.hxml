@@ -1,0 +1,5 @@
+sasync.hxml
+-cp tests
+-D analyzer-optimize
+--main Tests
+--interp
