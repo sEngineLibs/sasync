@@ -1,2 +1,2 @@
---macro registerMetadataDescriptionFile("meta.json");
---macro addGlobalMetadata("", "@:build(sasync.Async.build())", true, true, true);
+--macro registerMetadataDescriptionFile("meta.json")
+--macro addGlobalMetadata("", "@:build(sasync.Async.build())", true, true, true)

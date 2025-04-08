@@ -4,8 +4,8 @@
     "license": "Apache",
     "tags": ["async", "sugar"],
     "version": "0.0.1",
-    "classPath": "src",
-    "description": "A lightweight macro-based asynchronous programming model for Haxe, inspired by `async/await` syntax found in modern languages.",
+    "classPath": "Sources",
+    "description": "A lightweight macro-based asynchronous programming model for Haxe, inspired by `async / await` syntax found in modern languages.",
     "contributors": ["smoothie"],
-    "releasenote": "README.md adjustments"
+    "releasenote": "First release"
 }

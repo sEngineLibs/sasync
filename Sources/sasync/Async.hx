@@ -58,20 +58,12 @@ class Async<T> {
 
 	static function transformAsync(expr:Expr, t:ComplexType):Expr {
 		return macro {
-			var p = new sasync.Promise();
-			@:privateAccess sasync.Promise.post(() -> {
-				try {
-					${
-						if (t.toString() != "Void")
-							macro p.result = $expr
-						else
-							macro $expr
-					}
-				} catch (e)
-					p.error = e;
-				p.lock.release();
+			return new sasync.Promise(p -> ${
+				if (t.toString() != "Void")
+					macro p.result = $expr
+				else
+					macro $expr
 			});
-			return p;
 		};
 	}
 }

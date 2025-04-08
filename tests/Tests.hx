@@ -2,9 +2,9 @@ package;
 
 class Tests {
 	public static function main() {
-		#if (target.threaded)
+		#if (sys && target.threaded)
 		log("Start tests\n");
-		
+
 		@await testSimple();
 		var result = @await testReturn();
 		log('Return test: $result\n');
