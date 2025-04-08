@@ -1,5 +1,5 @@
 -cp tests
--L sasync:0.0.8
+-L sasync
 -D analyzer-optimize
 --main Tests
 --interp

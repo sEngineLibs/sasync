@@ -2,6 +2,14 @@
 
 A lightweight macro-based asynchronous programming model for Haxe, inspired by `async/await` syntax found in modern languages.
 
+## Installation
+
+```
+haxelib install sasync
+```
+
+---
+
 ## Features
 
 -   Works with `sys.thread` and `ElasticThreadPool` on threaded targets.
