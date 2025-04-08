@@ -24,6 +24,10 @@ class Tests {
 		@await testIfElse(true);
 		@await testIfElse(false);
 
+		log('Timeout (2.5s) test  start:  ${Date.now().getSeconds()}s');
+		@await(2.5) testTimeout(10.0);
+		log('Timeout (2.5s) test end: ${Date.now().getSeconds()}s\n');
+
 		log("All tests finished");
 		#else
 		trace("Target is not threaded");
@@ -73,12 +77,16 @@ class Tests {
 
 	@async static function testIfElse(flag:Bool):Void {
 		if (flag) {
-			log("Branch: TRUE\n");
+			log("Branch: TRUE");
 			Sys.sleep(0.02);
 		} else {
 			log("Branch: FALSE\n");
 			Sys.sleep(0.02);
 		}
+	}
+
+	@async static function testTimeout(time:Float):Void {
+		Sys.sleep(time);
 	}
 
 	static function log(s:String) {
