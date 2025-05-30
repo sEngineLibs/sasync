@@ -1,0 +1,413 @@
+[{
+	access: [APublic, AStatic]
+	doc: null
+	kind: FFun({
+		args: []
+		expr: {
+			expr: EBlock([{
+				expr: ECall({
+					expr: EConst(CIdent(trace))
+					pos: #pos
+				}, [{
+					expr: EConst(CString(Start tests
+, DoubleQuotes))
+					pos: #pos
+				}])
+				pos: #pos
+			}, {
+				expr: ECall({
+					expr: EField({
+						expr: ECall({
+							expr: EConst(CIdent(runTests))
+							pos: #pos
+						}, [])
+						pos: #pos
+					}, then, Normal)
+					pos: #pos
+				}, [{
+					expr: EFunction(FArrow, {
+						args: [{
+							meta: []
+							name: _
+							opt: false
+							type: null
+							value: null
+						}]
+						expr: {
+							expr: EMeta({
+								name: :implicitReturn
+								params: []
+								pos: #pos
+							}, {
+								expr: EReturn({
+									expr: ECall({
+										expr: EConst(CIdent(trace))
+										pos: #pos
+									}, [{
+										expr: EConst(CString(All tests finished, DoubleQuotes))
+										pos: #pos
+									}])
+									pos: #pos
+								})
+								pos: #pos
+							})
+							pos: #pos
+						}
+						params: []
+						ret: null
+					})
+					pos: #pos
+				}])
+				pos: #pos
+			}])
+			pos: #pos
+		}
+		params: []
+		ret: null
+	})
+	meta: [{
+		name: :build
+		params: [{
+			expr: ECall({
+				expr: EField({
+					expr: EField({
+						expr: EConst(CIdent(sasync))
+						pos: #pos
+					}, Async, Normal)
+					pos: #pos
+				}, build, Normal)
+				pos: #pos
+			}, [])
+			pos: #pos
+		}]
+		pos: #pos
+	}, {
+		name: :build
+		params: [{
+			expr: ECall({
+				expr: EField({
+					expr: EField({
+						expr: EConst(CIdent(sasync))
+						pos: #pos
+					}, Async, Normal)
+					pos: #pos
+				}, build, Normal)
+				pos: #pos
+			}, [])
+			pos: #pos
+		}]
+		pos: #pos
+	}, {
+		name: :build
+		params: [{
+			expr: ECall({
+				expr: EField({
+					expr: EField({
+						expr: EConst(CIdent(sasync))
+						pos: #pos
+					}, Async, Normal)
+					pos: #pos
+				}, build, Normal)
+				pos: #pos
+			}, [])
+			pos: #pos
+		}]
+		pos: #pos
+	}]
+	name: main
+	pos: #pos
+}, {
+	access: [AStatic]
+	doc: null
+	kind: FFun({
+		args: []
+		expr: {
+			expr: EBlock([{
+				expr: EVars([{
+					expr: {
+						expr: ENew({
+							name: Promise
+							pack: [sasync]
+							params: []
+							sub: null
+						}, [])
+						pos: #pos
+					}
+					isFinal: false
+					isStatic: false
+					meta: []
+					name: __promise__
+					namePos: #pos
+					type: null
+				}])
+				pos: #pos
+			}, {
+				expr: ECall({
+					expr: EField({
+						expr: EConst(CIdent(__promise__))
+						pos: #pos
+					}, run, Normal)
+					pos: #pos
+				}, [{
+					expr: EFunction(FArrow, {
+						args: []
+						expr: {
+							expr: EMeta({
+								name: :implicitReturn
+								params: []
+								pos: #pos
+							}, {
+								expr: EReturn({
+									expr: ETry({
+										expr: EBlock([{
+											expr: null <- expected value
+											pos: null <- expected value
+										}])
+										pos: #pos
+									}, [{
+										expr: {
+											expr: ECall({
+												expr: EField({
+													expr: EConst(CIdent(__promise__))
+													pos: #pos
+												}, reject, Normal)
+												pos: #pos
+											}, [{
+												expr: EConst(CIdent(e))
+												pos: #pos
+											}])
+											pos: #pos
+										}
+										name: e
+										type: null
+									}])
+									pos: #pos
+								})
+								pos: #pos
+							})
+							pos: #pos
+						}
+						params: []
+						ret: null
+					})
+					pos: #pos
+				}])
+				pos: #pos
+			}, {
+				expr: EReturn({
+					expr: EConst(CIdent(__promise__))
+					pos: #pos
+				})
+				pos: #pos
+			}])
+			pos: #pos
+		}
+		params: []
+		ret: null
+	})
+	meta: [{
+		name: async
+		params: []
+		pos: #pos
+	}]
+	name: runTests
+	pos: #pos
+}, {
+	access: [AStatic]
+	doc: null
+	kind: FFun({
+		args: []
+		expr: {
+			expr: EBlock([{
+				expr: EVars([{
+					expr: {
+						expr: ENew({
+							name: Promise
+							pack: [sasync]
+							params: []
+							sub: null
+						}, [])
+						pos: #pos
+					}
+					isFinal: false
+					isStatic: false
+					meta: []
+					name: __promise__
+					namePos: #pos
+					type: null
+				}])
+				pos: #pos
+			}, {
+				expr: ECall({
+					expr: EField({
+						expr: EConst(CIdent(__promise__))
+						pos: #pos
+					}, run, Normal)
+					pos: #pos
+				}, [{
+					expr: EFunction(FArrow, {
+						args: []
+						expr: {
+							expr: EMeta({
+								name: :implicitReturn
+								params: []
+								pos: #pos
+							}, {
+								expr: EReturn({
+									expr: ETry({
+										expr: EBlock([{
+											expr: null <- expected value
+											pos: null <- expected value
+										}])
+										pos: #pos
+									}, [{
+										expr: {
+											expr: ECall({
+												expr: EField({
+													expr: EConst(CIdent(__promise__))
+													pos: #pos
+												}, reject, Normal)
+												pos: #pos
+											}, [{
+												expr: EConst(CIdent(e))
+												pos: #pos
+											}])
+											pos: #pos
+										}
+										name: e
+										type: null
+									}])
+									pos: #pos
+								})
+								pos: #pos
+							})
+							pos: #pos
+						}
+						params: []
+						ret: null
+					})
+					pos: #pos
+				}])
+				pos: #pos
+			}, {
+				expr: EReturn({
+					expr: EConst(CIdent(__promise__))
+					pos: #pos
+				})
+				pos: #pos
+			}])
+			pos: #pos
+		}
+		params: []
+		ret: null
+	})
+	meta: [{
+		name: async
+		params: []
+		pos: #pos
+	}]
+	name: testSimple
+	pos: #pos
+}, {
+	access: [AStatic]
+	doc: null
+	kind: FFun({
+		args: []
+		expr: {
+			expr: EBlock([{
+				expr: EVars([{
+					expr: {
+						expr: ENew({
+							name: Promise
+							pack: [sasync]
+							params: []
+							sub: null
+						}, [])
+						pos: #pos
+					}
+					isFinal: false
+					isStatic: false
+					meta: []
+					name: __promise__
+					namePos: #pos
+					type: null
+				}])
+				pos: #pos
+			}, {
+				expr: ECall({
+					expr: EField({
+						expr: EConst(CIdent(__promise__))
+						pos: #pos
+					}, run, Normal)
+					pos: #pos
+				}, [{
+					expr: EFunction(FArrow, {
+						args: []
+						expr: {
+							expr: EMeta({
+								name: :implicitReturn
+								params: []
+								pos: #pos
+							}, {
+								expr: EReturn({
+									expr: ETry({
+										expr: EBlock([{
+											expr: null <- expected value
+											pos: null <- expected value
+										}])
+										pos: #pos
+									}, [{
+										expr: {
+											expr: ECall({
+												expr: EField({
+													expr: EConst(CIdent(__promise__))
+													pos: #pos
+												}, reject, Normal)
+												pos: #pos
+											}, [{
+												expr: EConst(CIdent(e))
+												pos: #pos
+											}])
+											pos: #pos
+										}
+										name: e
+										type: null
+									}])
+									pos: #pos
+								})
+								pos: #pos
+							})
+							pos: #pos
+						}
+						params: []
+						ret: null
+					})
+					pos: #pos
+				}])
+				pos: #pos
+			}, {
+				expr: EReturn({
+					expr: EConst(CIdent(__promise__))
+					pos: #pos
+				})
+				pos: #pos
+			}])
+			pos: #pos
+		}
+		params: []
+		ret: null
+	})
+	meta: [{
+		name: async
+		params: []
+		pos: #pos
+	}]
+	name: testReturn
+	pos: #pos
+}]
+line 162: expected value
+line 163: expected value
+line 258: expected value
+line 259: expected value
+line 354: expected value
+line 355: expected value

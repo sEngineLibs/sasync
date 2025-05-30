@@ -2,38 +2,32 @@ package;
 
 class Tests {
 	public static function main() {
-		#if (sys && target.threaded)
-		log("Start tests\n");
+		trace("Start tests\n");
+		runTests().then(_ -> trace("All tests finished"));
+	}
 
+	@async static function runTests() {
 		@await testSimple();
 		var result = @await testReturn();
-		log('Return test: $result\n');
+		trace('Return test: $result\n');
 
 		var nested = @await testNested();
-		log('Nested test: $nested\n');
+		trace('Nested test: $nested\n');
 
-		try {
-			@await testError();
-		} catch (e)
-			log('Caught error: $e\n');
+		testError().catchError(e -> trace('Caught error: $e\n'));
 
 		var results = @await testParallel();
-		log('Parallel test: $results\n');
+		trace('Parallel test: $results\n');
 
 		@await testLoop();
 		@await testIfElse(true);
 		@await testIfElse(false);
-
-		log("All tests finished");
-		#else
-		trace("Target is not threaded");
-		#end
 	}
 
 	@async static function testSimple():Void {
-		log("Simple test...");
+		trace("Simple test...");
 		Sys.sleep(0.1);
-		log("Simple done.\n");
+		trace("Simple done.\n");
 	}
 
 	@async static function testReturn():String {
@@ -66,22 +60,18 @@ class Tests {
 
 	@async static function testLoop():Void {
 		for (i in 0...3) {
-			log('Loop step: ' + i + (i == 2 ? "\n" : ""));
+			trace('Loop step: ' + i + (i == 2 ? "\n" : ""));
 			Sys.sleep(0.03);
 		}
 	}
 
 	@async static function testIfElse(flag:Bool):Void {
 		if (flag) {
-			log("Branch: TRUE\n");
+			trace("Branch: TRUE");
 			Sys.sleep(0.02);
 		} else {
-			log("Branch: FALSE\n");
+			trace("Branch: FALSE\n");
 			Sys.sleep(0.02);
 		}
-	}
-
-	static function log(s:String) {
-		trace('[ASYNC] ' + s);
 	}
 }
