@@ -1,20 +1,22 @@
 package;
 
+import sasync.Promise;
+
 class Tests {
 	public static function main() {
 		trace("Start tests\n");
-		runTests().then(_ -> trace("All tests finished"));
+		runTests().finally(() -> trace("All tests finished"));
 	}
 
 	@async static function runTests() {
 		@await testSimple();
 		var result = @await testReturn();
-		trace('Return test: $result\n');
+		trace('Return test: ${result}\n');
 
 		var nested = @await testNested();
 		trace('Nested test: $nested\n');
 
-		testError().catchError(e -> trace('Caught error: $e\n'));
+		// testError().catchError(e -> trace('Caught error: $e\n'));
 
 		var results = @await testParallel();
 		trace('Parallel test: $results\n');

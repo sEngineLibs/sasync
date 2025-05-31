@@ -35,6 +35,7 @@ class Async<T> {
 				switch field.kind {
 					case FFun(f):
 						buildAsync(f);
+						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -50,18 +51,11 @@ class Async<T> {
 		f.ret = null;
 		var t = transformTask(f.expr);
 		if (!t.transformed)
-			f.expr = concat(f.expr, macro __promise__.resolve());
+			f.expr = concat(f.expr, macro __resolve__(null));
 		else
 			f.expr = t.expr;
 		f.expr = transform(f.expr).expr;
-		f.expr = macro {
-			var __promise__ = new sasync.Promise();
-			__promise__.run(() -> try {
-				${f.expr};
-			} catch (e)
-				__promise__.reject(e));
-			return __promise__;
-		};
+		f.expr = macro return new sasync.Promise((__resolve__, __reject__) -> ${f.expr});
 	}
 
 	static function transformTask(expr:Expr) {
@@ -71,7 +65,7 @@ class Async<T> {
 				expr;
 			case EReturn(e):
 				transformed = true;
-				macro __promise__.resolve($e);
+				macro __resolve__($e);
 			default:
 				expr.map(e -> {
 					var t = transformTask(e);
@@ -94,7 +88,10 @@ class Async<T> {
 			}
 			return {
 				ctx: ctx,
-				expr: macro(__cont__ -> ${ctx.awaitExpr})($name -> ${ctx.awaitCont})
+				expr: macro(__cont__ -> ${ctx.awaitExpr})($name -> {
+					${ctx.awaitCont};
+					return null;
+				})
 			}
 		}
 
@@ -127,7 +124,7 @@ class Async<T> {
 				}
 
 			case EMeta(s, e) if (["await", ":await"].contains(s.name)):
-				return await(macro $e.then(__cont__));
+				return await(macro $e.then(v -> sasync.Promise.resolve(__cont__(v))));
 
 			case EBlock(exprs):
 				var ret = [];
