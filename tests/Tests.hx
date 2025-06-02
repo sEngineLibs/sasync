@@ -1,96 +1,79 @@
 package;
 
-import haxe.Timer;
-import sasync.Future;
+import sasync.Async;
 
 class Tests {
 	public static function main() {
-		trace("Start tests\n");
-
 		runTests().finally(() -> trace("All tests finished"));
 	}
 
-	static function get() {
-		return;
-	}
-
 	@async static function runTests() {
-		// @await testSimple();
+		@await testSimple();
 
-		// var ret = @await testReturn();
-		// trace('Return test: $ret\n');
+		var ret = @await testReturn();
+		trace('Return test: $ret\n');
 
-		// var nested = @await testNested();
-		// trace('Nested test: $nested\n');
+		var nested = @await testNested();
+		trace('Nested test: $nested\n');
 
-		// var results = @await testParallel();
-		// trace('Parallel test: $results\n');
+		var results = @await testParallel();
+		trace('Parallel test: $results\n');
 
-		// testError().catchError(e -> trace('Caught error: $e'));
+		testError().catchError(e -> trace('Caught error: $e\n'));
 
-		// @await testIfElse(true);
-		// @await testIfElse(false);
+		@await testLoop();
 
-		// var i = 0;
-		// while (i++ < {
-		// 	var a = 4;
-		// 	@await testAdd(a, 1);
-		// }) {
-		// 	var b = 0;
-		// 	trace(@await testAdd(b, 1));
-		// }
-		for (i in 0...5) {
-			var b = 0;
-			trace(@await testAdd(b, 1));
-		}
-		trace("loop done");
+		@await testIfElse(true);
+		@await testIfElse(false);
 	}
 
-	// @async static function testSimple():Void {
-	// 	trace("Simple test...");
-	// 	Sys.sleep(0.1);
-	// 	trace("Simple done.\n");
-	// }
-	// @async static function testReturn():String {
-	// 	Sys.sleep(0.05);
-	// 	return "Hello from async";
-	// }
-	// @async static function testNested():Int {
-	// 	var a = @await testAdd(1, 2);
-	// 	var b = @await testAdd(3, 4);
-	// 	return a + b;
-	// }
+	@async static function testSimple():Void {
+		trace("Simple test...");
+		@await Async.sleep(0.1);
+		trace("Simple done.\n");
+	}
 
-	@async static function testAdd(a:Int, b:Int):Int {
-		Sys.sleep(0.05);
+	@async static function testReturn():String {
+		@await Async.sleep(0.5);
+		return "Hello from async";
+	}
+
+	@async static function testNested():Int {
+		var a = @await testAdd(1, 2);
+		var b = @await testAdd(3, 4);
 		return a + b;
 	}
 
-	// @async static function testError():Void {
-	// 	Sys.sleep(0.05);
-	// 	throw "*some error message*";
-	// }
-	// @async static function testParallel():Array<Int> {
-	// 	var p1 = testAdd(1, 1);
-	// 	var p2 = testAdd(2, 2);
-	// 	var p3 = testAdd(3, 3);
-	// 	return @await Future.gather([p1, p2, p3]);
-	// }
-	// @async static function testLoop():Void {
-	// 	for (i in 0...3) {
-	// 		trace('Loop step: ' + i + (i == 2 ? "\n" : ""));
-	// 		Sys.sleep(0.03);
-	// 	}
-	// }
-	// @async static function testIfElse(flag:Bool) {
-	// 	if (flag)
-	// 		@await new Future((resolve, reject) -> {
-	// 			Timer.delay(() -> {
-	// 				trace("Branch: TRUE\n");
-	// 				resolve();
-	// 			}, 200);
-	// 		});
-	// 	else
-	// 		trace("Branch: FALSE\n");
-	// }
+	@async static function testAdd(a:Int, b:Int):Int {
+		@await Async.sleep(0.5);
+		return a + b;
+	}
+
+	@async static function testError():Void {
+		@await Async.sleep(0.5);
+		if (@await testAdd(1, 2) > 0)
+			throw "*some error message*";
+	}
+
+	@async static function testParallel():Array<Int> {
+		var p1 = testAdd(1, 1);
+		var p2 = testAdd(2, 2);
+		var p3 = testAdd(3, 3);
+		return @await Async.gather([p1, p2, p3]);
+	}
+
+	@async static function testLoop():Void {
+		for (i in 0...3) {
+			trace('Loop step: ' + i + (i == 2 ? "\n" : ""));
+			@await Async.sleep(0.3);
+		}
+	}
+
+	@async static function testIfElse(flag:Bool) {
+		@await Async.sleep(0.2);
+		if (flag)
+			trace("Branch: TRUE");
+		else
+			trace("Branch: FALSE\n");
+	}
 }

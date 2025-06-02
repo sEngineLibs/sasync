@@ -8,28 +8,31 @@ enum FutureStatus<T> {
 	Rejected(reason:Dynamic);
 }
 
+@:structInit
+class FutureHandler<T> {
+	var onResolved:T->Void;
+	var onRejected:Dynamic->Void;
+
+	public function new(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+		this.onResolved = onResolved;
+		this.onRejected = onRejected;
+	}
+
+	public function resolve(?value:T) {
+		try {
+			onResolved(value);
+		} catch (e)
+			reject(e);
+	}
+
+	public function reject(reason:Dynamic) {
+		if (onRejected != null)
+			onRejected(reason);
+	}
+}
+
 class Future<T> {
-	public static function gather<T>(iterable:Array<Future<T>>):Future<Array<T>> {
-		return new Future((resolve, reject) -> {
-			var ret = [];
-			for (i in iterable)
-				i.handle(v -> {
-					ret.push(v);
-					if (ret.length == iterable.length)
-						resolve(ret);
-				}, reject);
-		});
-	}
-
-	public static function race<T>(iterable:Array<Future<T>>):Future<T> {
-		return new Future((resolve, reject) -> {
-			for (i in iterable)
-				i.handle(resolve, reject);
-		});
-	}
-
-	var onResolved:Array<T->Void> = [];
-	var onRejected:Array<Dynamic->Void> = [];
+	var handlers:Array<FutureHandler<T>> = [];
 
 	public var status:FutureStatus<T> = Pending;
 
@@ -44,17 +47,18 @@ class Future<T> {
 		});
 	}
 
-	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+	overload extern public inline function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+		handle({onResolved: onResolved, onRejected: onRejected});
+	}
+
+	overload extern public inline function handle(handler:FutureHandler<T>) {
 		switch status {
-			case Resolved(value) if (onResolved != null):
-				onResolved(value);
-			case Rejected(reason) if (onRejected != null):
-				onRejected(reason);
+			case Resolved(value):
+				handler.resolve(value);
+			case Rejected(reason):
+				handler.reject(reason);
 			default:
-				if (onResolved != null)
-					this.onResolved.push(onResolved);
-				if (onRejected != null)
-					this.onRejected.push(onRejected);
+				handlers.push(handler);
 		}
 	}
 
@@ -70,8 +74,8 @@ class Future<T> {
 		switch status {
 			case Pending:
 				status = Resolved(value);
-				for (f in onResolved)
-					f(value);
+				for (h in handlers)
+					h.resolve(value);
 			default:
 		}
 	}
@@ -80,8 +84,8 @@ class Future<T> {
 		switch status {
 			case Pending:
 				status = Rejected(reason);
-				for (f in onRejected)
-					f(reason);
+				for (h in handlers)
+					h.reject(reason);
 			default:
 		}
 	}

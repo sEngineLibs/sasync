@@ -9,7 +9,42 @@ using haxe.macro.ExprTools;
 using haxe.macro.TypeTools;
 using haxe.macro.ComplexTypeTools;
 
+typedef AwaitContext = {
+	awaitExpr:Expr,
+	awaitCont:Expr
+}
+
+typedef AsyncContext = {
+	ctx:AwaitContext,
+	expr:Expr
+}
+#end
+
 class Async<T> {
+	public static function gather<T>(iterable:Array<Future<T>>):Future<Array<T>> {
+		return new Future((resolve, reject) -> {
+			var ret = [];
+			for (i in iterable)
+				i.handle(v -> {
+					ret.push(v);
+					if (ret.length == iterable.length)
+						resolve(ret);
+				}, reject);
+		});
+	}
+
+	public static function race<T>(iterable:Array<Future<T>>):Future<T> {
+		return new Future((resolve, reject) -> {
+			for (i in iterable)
+				i.handle(resolve, reject);
+		});
+	}
+
+	public static function sleep(seconds:Float) {
+		return new Future((resolve, reject) -> haxe.Timer.delay(() -> resolve(), Std.int(seconds * 1000)));
+	}
+
+	#if macro
 	macro public static function init():Void {
 		Compiler.addGlobalMetadata("", "@:build(sasync.Async.build())", true, true, true);
 		Compiler.registerCustomMetadata({
@@ -43,7 +78,6 @@ class Async<T> {
 				switch field.kind {
 					case FFun(f):
 						buildAsync(f);
-						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -59,7 +93,6 @@ class Async<T> {
 		f.ret = null;
 
 		var t = transformTask(f.expr);
-
 		f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
 		f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
 	}
@@ -98,7 +131,7 @@ class Async<T> {
 			}
 			return {
 				ctx: ctx,
-				expr: macro ${ctx.awaitExpr}($name -> ${ctx.awaitCont})
+				expr: macro ${ctx.awaitExpr}($name -> ${ctx.awaitCont}, __reject__)
 			}
 		}
 
@@ -176,15 +209,16 @@ class Async<T> {
 				var te = transform(e);
 				if (te.ctx != null) {
 					var name = '__ret${index++}__';
+					var fname = '__repeat${index}__';
+					var fnameRef = macro $i{fname};
 
-					te.ctx.awaitCont.expr = concat(copy(te.ctx.awaitCont), macro repeat()).expr;
+					te.ctx.awaitCont.expr = concat(copy(te.ctx.awaitCont), macro $fnameRef()).expr;
 					var awaitCont = macro {};
 					var awaitExpr = te.expr;
 					var repeatExpr = macro if ($econd) $awaitExpr else $awaitCont;
 					expr = macro {
-						function repeat()
-							$repeatExpr;
-						repeat();
+						function $fname() $repeatExpr;
+						$fnameRef();
 					};
 
 					if (tecond.ctx != null) {
@@ -203,7 +237,7 @@ class Async<T> {
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
 
-				expr = mapScoped(expr, append, e -> {
+				mapScoped(expr, append, e -> {
 					if (e != null) {
 						var t = transform(e);
 						ts.set(e, t);
@@ -297,53 +331,5 @@ class Async<T> {
 				[e];
 		}
 	}
-
-	static function transformWhile(cond:Expr, body:Expr) {
-		cond = macro if ($cond) repeat();
-		return {
-			before: macro function repeat()
-				$b{asBlock(body).concat([cond])},
-			expr: cond
-		}
-	}
-
-	// static function transformGenerator(cond:Expr, body:Expr) {
-	// 	var init = tmp(macro []);
-	// 	var fbody = flatten(body, true);
-	// 	fbody.before.push(fbody.expr);
-	// 	var bbody = fbody.before;
-	// 	bbody[bbody.length - 1] = macro ${init.expr}.push(${bbody[bbody.length - 1]});
-	// 	var loopBlock = transformWhile(cond, block(bbody));
-	// 	return {
-	// 		before: [init.before, loopBlock.before, loopBlock.expr],
-	// 		expr: init.expr
-	// 	}
-	// }
-	// static function tmp(?expr:Expr, isFinal:Bool = true) {
-	// 	static var i = 0;
-	// 	var name = '__tmp${i++}__';
-	// 	var before;
-	// 	if (expr != null)
-	// 		if (isFinal)
-	// 			before = macro final $name = $expr;
-	// 		else
-	// 			before = macro var $name = $expr;
-	// 	else
-	// 		before = macro var $name;
-	// 	return {
-	// 		before: before,
-	// 		expr: macro $i{name}
-	// 	}
-	// }
+	#end
 }
-
-typedef AwaitContext = {
-	awaitExpr:Expr,
-	awaitCont:Expr
-}
-
-typedef AsyncContext = {
-	ctx:AwaitContext,
-	expr:Expr
-}
-#end
