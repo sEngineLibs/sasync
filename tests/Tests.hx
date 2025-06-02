@@ -10,6 +10,8 @@ class Tests {
 	@async static function runTests() {
 		@await testSimple();
 
+		testError().catchError(e -> trace('Caught error: $e\n'));
+
 		var ret = @await testReturn();
 		trace('Return test: $ret\n');
 
@@ -18,8 +20,6 @@ class Tests {
 
 		var results = @await testParallel();
 		trace('Parallel test: $results\n');
-
-		testError().catchError(e -> trace('Caught error: $e\n'));
 
 		@await testLoop();
 
@@ -63,9 +63,11 @@ class Tests {
 	}
 
 	@async static function testLoop():Void {
-		for (i in 0...3) {
-			trace('Loop step: ' + i + (i == 2 ? "\n" : ""));
+		for (i in 0...10) {
 			@await Async.sleep(0.3);
+			trace('Loop step: $i');
+			if (i >= 5)
+				break;
 		}
 	}
 

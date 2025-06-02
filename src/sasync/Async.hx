@@ -78,6 +78,7 @@ class Async<T> {
 				switch field.kind {
 					case FFun(f):
 						buildAsync(f);
+						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -212,13 +213,13 @@ class Async<T> {
 					var fname = '__repeat${index}__';
 					var fnameRef = macro $i{fname};
 
-					te.ctx.awaitCont.expr = concat(copy(te.ctx.awaitCont), macro $fnameRef()).expr;
+					te.ctx.awaitCont.expr = concat(copy(te.ctx.awaitCont), macro $fnameRef($econd)).expr;
 					var awaitCont = macro {};
-					var awaitExpr = te.expr;
-					var repeatExpr = macro if ($econd) $awaitExpr else $awaitCont;
+					var awaitExpr = transformLoop(te.expr, econd, fnameRef);
+					var repeatExpr = macro if (__cond__) $awaitExpr else $awaitCont;
 					expr = macro {
-						function $fname() $repeatExpr;
-						$fnameRef();
+						function $fname(__cond__ : Bool) $repeatExpr;
+						$fnameRef($econd);
 					};
 
 					if (tecond.ctx != null) {
@@ -301,6 +302,27 @@ class Async<T> {
 			},
 			pos: e.pos
 		}
+	}
+
+	static function transformLoop(expr:Expr, econd:Expr, ref:Expr) {
+		return expr.map(e -> {
+			switch e.expr {
+				case EFor(_, _), EWhile(_, _, _):
+					e;
+				case EBreak:
+					macro {
+						$ref(false);
+						return;
+					}
+				case EContinue:
+					macro {
+						$ref($econd);
+						return;
+					}
+				default:
+					transformLoop(e, econd, ref);
+			}
+		});
 	}
 
 	static function copy(e:Expr) {
