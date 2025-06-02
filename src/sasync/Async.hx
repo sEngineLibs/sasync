@@ -17,7 +17,15 @@ class Async<T> {
 			doc: "Marks a function to be executed asynchronously"
 		});
 		Compiler.registerCustomMetadata({
+			metadata: ":async",
+			doc: "Marks a function to be executed asynchronously"
+		});
+		Compiler.registerCustomMetadata({
 			metadata: "await",
+			doc: "Marks an expression whose result should be awaited"
+		});
+		Compiler.registerCustomMetadata({
+			metadata: ":await",
 			doc: "Marks an expression whose result should be awaited"
 		});
 	}
@@ -49,23 +57,22 @@ class Async<T> {
 	static function buildAsync(f:Function) {
 		index = 0;
 		f.ret = null;
+
 		var t = transformTask(f.expr);
-		if (!t.transformed)
-			f.expr = concat(f.expr, macro __resolve__(null));
-		else
-			f.expr = t.expr;
-		f.expr = transform(f.expr).expr;
-		f.expr = macro return new sasync.Promise((__resolve__, __reject__) -> ${f.expr});
+
+		f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
+		f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
 	}
 
 	static function transformTask(expr:Expr) {
 		var transformed = false;
+
 		expr = switch expr.expr {
 			case EFunction(_, _):
 				expr;
 			case EReturn(e):
 				transformed = true;
-				macro __resolve__($e);
+				e == null ? macro __resolve__() : macro __resolve__($e);
 			default:
 				expr.map(e -> {
 					var t = transformTask(e);
@@ -73,6 +80,7 @@ class Async<T> {
 					t.expr;
 				});
 		};
+
 		return {
 			transformed: transformed,
 			expr: expr
@@ -80,7 +88,9 @@ class Async<T> {
 	}
 
 	static function transform(expr:Expr):AsyncContext {
-		function await(e:Expr):AsyncContext {
+		var ctx:AwaitContext = null;
+
+		function await(e:Expr) {
 			var name = '__ret${index++}__';
 			var ctx = {
 				awaitExpr: e,
@@ -88,14 +98,9 @@ class Async<T> {
 			}
 			return {
 				ctx: ctx,
-				expr: macro(__cont__ -> ${ctx.awaitExpr})($name -> {
-					${ctx.awaitCont};
-					return null;
-				})
+				expr: macro ${ctx.awaitExpr}($name -> ${ctx.awaitCont})
 			}
 		}
-
-		var ctx:AwaitContext = null;
 
 		function append(e:Expr) {
 			var t = transform(e);
@@ -124,46 +129,105 @@ class Async<T> {
 				}
 
 			case EMeta(s, e) if (["await", ":await"].contains(s.name)):
-				return await(macro $e.then(v -> sasync.Promise.resolve(__cont__(v))));
+				return await(macro $e.handle);
 
 			case EBlock(exprs):
+				var rest = exprs.copy();
 				var ret = [];
-				while (exprs.length > 0) {
-					var t = transform(exprs.shift());
+				while (rest.length > 0) {
+					var t = transform(rest.shift());
 					ret.push(t.expr);
 					if (t.ctx != null) {
 						ctx = t.ctx;
-						if (exprs.length > 0)
-							ctx.awaitCont.expr = concat(copy(ctx.awaitCont), transform(block(exprs)).expr).expr;
+						if (rest.length > 0)
+							ctx.awaitCont.expr = concat(copy(ctx.awaitCont), transform(block(rest)).expr).expr;
 						break;
 					}
 				}
 				expr = block(ret);
 
 			case EFor(it, expr):
-				Context.warning("Async loops are not yet supported", expr.pos);
+				switch it.expr {
+					case EBinop(_, e1, e2):
+						switch e1.expr {
+							case EConst(c):
+								switch c {
+									case CIdent(s):
+										return transform(macro {
+											final __iterable__ = $e2;
+											while (__iterable__.hasNext()) {
+												var $s = __iterable__.next();
+												$expr;
+											}
+										});
+									default:
+								}
+							default:
+						}
+					default:
+				}
 
 			case EWhile(econd, e, normalWhile):
-				Context.warning("Async loops are not yet supported", expr.pos);
+				var tecond = transform(econd);
+
+				if (tecond.ctx != null)
+					econd.expr = tecond.ctx.awaitCont.expr;
+
+				var te = transform(e);
+				if (te.ctx != null) {
+					var name = '__ret${index++}__';
+
+					te.ctx.awaitCont.expr = concat(copy(te.ctx.awaitCont), macro repeat()).expr;
+					var awaitCont = macro {};
+					var awaitExpr = te.expr;
+					var repeatExpr = macro if ($econd) $awaitExpr else $awaitCont;
+					expr = macro {
+						function repeat()
+							$repeatExpr;
+						repeat();
+					};
+
+					if (tecond.ctx != null) {
+						tecond.ctx.awaitCont.expr = copy(repeatExpr).expr;
+						repeatExpr.expr = tecond.expr.expr;
+					}
+
+					ctx = {
+						awaitExpr: te.expr,
+						awaitCont: awaitCont
+					}
+				}
 
 			case ETry(_, _), ESwitch(_, _, _), EIf(_, _, _), ETernary(_, _, _):
 				var og = copy(expr);
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
 
-				mapScoped(expr, append, e -> {
-					var t = transform(e);
-					ts.set(e, t);
-					if (t.ctx != null)
-						delayed = true;
+				expr = mapScoped(expr, append, e -> {
+					if (e != null) {
+						var t = transform(e);
+						ts.set(e, t);
+						e = t.expr;
+						if (t.ctx != null)
+							delayed = true;
+					}
 					e;
 				});
 
 				if (delayed) {
-					var t = await(mapScoped(og, e -> e, e -> {
-						var c = ts.get(e);
-						c.ctx?.awaitExpr ?? macro __cont__(${c.expr});
+					var t = await(macro(__cont__ -> ${
+						mapScoped(og, e -> e, e -> {
+							if (e != null) {
+								var c = ts.get(e);
+								if (c.ctx != null)
+									macro ${c.ctx.awaitExpr}(__cont__);
+								else
+									macro __cont__(untyped ${c.expr});
+							} else
+								macro __cont__();
+						})
 					}));
+
 					if (ctx != null) {
 						ctx.awaitCont.expr = t.expr.expr;
 						ctx.awaitCont = t.ctx.awaitCont;
@@ -182,9 +246,6 @@ class Async<T> {
 	}
 
 	static function mapScoped(e:Expr, a:Expr->Expr, s:Expr->Expr):Expr {
-		function opt(e:Expr, f:Expr->Expr)
-			return e == null ? null : f(e);
-
 		return {
 			expr: switch e.expr {
 				case ETry(e, catches):
@@ -198,9 +259,9 @@ class Async<T> {
 						values: c.values,
 						guard: c.guard,
 						expr: s(c.expr)
-					}), opt(edef, s));
+					}), s(edef));
 				case EIf(econd, eif, eelse), ETernary(econd, eif, eelse):
-					EIf(a(econd), s(eif), opt(eelse, s));
+					EIf(a(econd), s(eif), s(eelse));
 				default:
 					a(e).expr;
 			},
