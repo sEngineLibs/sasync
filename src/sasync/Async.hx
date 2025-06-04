@@ -150,7 +150,7 @@ class Async<T> {
 
 			case EMeta(s, e) if (["await", ":await"].contains(s.name)):
 				var name = '__await${awaitIndex++}__';
-				awaitCont = macro $i{name};
+				awaitCont = macro untyped $i{name};
 				expr = macro $e.handle($name -> ${awaitCont}, __reject__);
 
 			case EBlock(exprs):
@@ -200,7 +200,7 @@ class Async<T> {
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
 
-				mapScoped(expr, append, e -> {
+				mapScoped(og, append, e -> {
 					if (e != null) {
 						var t = transform(e);
 						ts.set(e, t);
@@ -216,12 +216,15 @@ class Async<T> {
 					var _awaitCont = macro $i{name}();
 					var _expr = macro(__cont__ -> ${
 						mapScoped(og, e -> e, e -> {
-							var t = ts.get(e);
-							if (t.awaitCont != null) {
-								t.awaitCont.expr = (macro __cont__(() -> ${copy(t.awaitCont)})).expr;
-								macro ${t.expr};
+							if (e != null) {
+								var t = ts.get(e);
+								if (t.awaitCont != null) {
+									t.awaitCont.expr = (macro __cont__(() -> ${copy(t.awaitCont)})).expr;
+									macro ${t.expr};
+								} else
+									macro __cont__(() -> $e);
 							} else
-								macro __cont__(() -> $e);
+								macro __cont__(() -> {});
 						})
 					})($name -> $_awaitCont);
 
