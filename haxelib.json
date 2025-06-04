@@ -3,9 +3,9 @@
     "url": "https://github.com/sEngineLibs/sasync",
     "license": "Apache",
     "tags": ["async", "sugar"],
-    "version": "0.1.1",
+    "version": "0.1.3",
     "classPath": "src",
     "description": "A lightweight macro-based asynchronous CPS programming model for Haxe, inspired by `async / await` syntax found in modern languages.",
     "contributors": ["smoothie"],
-    "releasenote": "Fix error handlers"
+    "releasenote": "Add support for break and continue keywords"
 }

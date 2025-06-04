@@ -2,15 +2,15 @@ package;
 
 import sasync.Async;
 
-class Tests {
+@await class Tests {
 	public static function main() {
 		runTests().finally(() -> trace("All tests finished"));
 	}
 
 	@async static function runTests() {
-		@await testSimple();
-
 		testError().catchError(e -> trace('Caught error: $e\n'));
+
+		@await testSimple();
 
 		var ret = @await testReturn();
 		trace('Return test: $ret\n');
@@ -66,8 +66,10 @@ class Tests {
 		for (i in 0...10) {
 			@await Async.sleep(0.3);
 			trace('Loop step: $i');
-			if (i >= 5)
+			if (i >= 5) {
+				trace('Loop break\n');
 				break;
+			}
 		}
 	}
 
