@@ -7,5 +7,5 @@
     "classPath": "src",
     "description": "A lightweight macro-based asynchronous CPS programming model for Haxe, inspired by `async / await` syntax found in modern languages.",
     "contributors": ["smoothie"],
-    "releasenote": "Adjust syntax parsing"
+    "releasenote": "Fix errors"
 }

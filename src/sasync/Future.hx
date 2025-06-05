@@ -8,29 +8,6 @@ enum FutureStatus<T> {
 	Rejected(reason:Dynamic);
 }
 
-@:structInit
-class FutureHandler<T> {
-	var onResolved:T->Void;
-	var onRejected:Dynamic->Void;
-
-	public function new(onResolved:T->Void, ?onRejected:Dynamic->Void) {
-		this.onResolved = onResolved;
-		this.onRejected = onRejected;
-	}
-
-	public function resolve(?value:T) {
-		try {
-			onResolved(value);
-		} catch (e)
-			reject(e);
-	}
-
-	public function reject(reason:Dynamic) {
-		if (onRejected != null)
-			onRejected(reason);
-	}
-}
-
 class Future<T> {
 	var handlers:Array<FutureHandler<T>> = [];
 
@@ -47,11 +24,8 @@ class Future<T> {
 		});
 	}
 
-	overload extern public inline function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
-		handle({onResolved: onResolved, onRejected: onRejected});
-	}
-
-	overload extern public inline function handle(handler:FutureHandler<T>) {
+	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+		var handler = new FutureHandler(onResolved, onRejected);
 		switch status {
 			case Resolved(value):
 				handler.resolve(value);
@@ -88,5 +62,27 @@ class Future<T> {
 					h.reject(reason);
 			default:
 		}
+	}
+}
+
+private class FutureHandler<T> {
+	var onResolved:T->Void;
+	var onRejected:Dynamic->Void;
+
+	public function new(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+		this.onResolved = onResolved;
+		this.onRejected = onRejected;
+	}
+
+	public function resolve(?value:T) {
+		try {
+			onResolved(value);
+		} catch (e)
+			reject(e);
+	}
+
+	public function reject(reason:Dynamic) {
+		if (onRejected != null)
+			onRejected(reason);
 	}
 }

@@ -16,6 +16,14 @@ typedef AsyncContext = {
 #end
 
 class Async<T> {
+	public static function resolve<T>(value:T) {
+		return new Future((resolve, _) -> resolve(value));
+	}
+
+	public static function reject<T>(value:T) {
+		return new Future((_, reject) -> reject(value));
+	}
+
 	public static function gather<T>(iterable:Array<Future<T>>):Future<Array<T>> {
 		return new Future((resolve, reject) -> {
 			var ret = [];
@@ -301,7 +309,7 @@ class Async<T> {
 						expr: s(c.expr)
 					}));
 				case ESwitch(e, cases, edef):
-					ESwitch(s(e), cases.map(c -> {
+					ESwitch(a(e), cases.map(c -> {
 						values: c.values,
 						guard: c.guard,
 						expr: s(c.expr)

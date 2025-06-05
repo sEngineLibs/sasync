@@ -1,5 +1,6 @@
 package;
 
+import sasync.Future;
 import sasync.Async;
 
 @await class Tests {
@@ -9,20 +10,14 @@ import sasync.Async;
 
 	@async static function runTests() {
 		testError().catchError(e -> trace('Caught error: $e\n'));
-
 		@await testSimple();
-
 		var ret = @await testReturn();
 		trace('Return test: $ret\n');
-
 		var nested = @await testNested();
 		trace('Nested test: $nested\n');
-
 		var results = @await testParallel();
 		trace('Parallel test: $results\n');
-
 		@await testLoop();
-
 		@await testIfElse(true);
 		@await testIfElse(false);
 	}
@@ -63,13 +58,17 @@ import sasync.Async;
 	}
 
 	@async static function testLoop():Void {
-		for (i in 0...10) {
+		for (i in -5...15) {
 			@await Async.sleep(0.3);
-			trace('Loop step: $i');
+			if (i < 0) {
+				trace('Loop continues\n');
+				continue;
+			}
 			if (i >= 5) {
-				trace('Loop break\n');
+				trace('Loop breaks\n');
 				break;
 			}
+			trace('Loop step: $i');
 		}
 	}
 
