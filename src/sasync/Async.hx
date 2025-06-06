@@ -7,6 +7,7 @@ import haxe.macro.Compiler;
 
 using haxe.macro.ExprTools;
 using haxe.macro.TypeTools;
+using haxe.macro.MacroStringTools;
 using haxe.macro.ComplexTypeTools;
 
 typedef AwaitContext = {
@@ -77,7 +78,8 @@ class Async {
 			if (["async", ":async"].contains(m.name)) {
 				switch field.kind {
 					case FFun(f):
-						buildAsync(f);
+						buildAsync(f, field.access.contains(AAbstract));
+						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -90,7 +92,7 @@ class Async {
 	static var contIndex = 0;
 	static var repeatIndex = 0;
 
-	static function buildAsync(f:Function) {
+	static function buildAsync(f:Function, isAbstract:Bool = false) {
 		awaitIndex = 0;
 		contIndex = 0;
 		repeatIndex = 0;
@@ -100,9 +102,11 @@ class Async {
 			if (fret.toString() == "Void")
 				fret = macro :sasync.Future.None;
 			f.ret = macro :sasync.Future<$fret>;
-			var t = transformTask(f.expr);
-			f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
-			f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
+			if (!isAbstract && f.expr != null) {
+				var t = transformTask(f.expr);
+				f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
+				f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
+			}
 		} else
 			Context.error("Async functions must be type-hinted", f.expr.pos);
 	}
@@ -216,6 +220,8 @@ class Async {
 				var te = transform(e);
 				if (te.ctx != null) {
 					var i = awaitIndex++;
+					var name = '__await${i}__';
+					var nameRef = macro $i{name};
 					var errName = '__error${i}__';
 					var errRef = macro $i{errName};
 					ctx = {
@@ -233,7 +239,7 @@ class Async {
 										tcexpr.ctx.res.expr = (macro __cont__(() -> ${copy(tcexpr.ctx.res)})).expr;
 										cexpr = tcexpr.expr;
 									} else
-										cexpr = macro __cont__(() -> ${c.expr});
+										cexpr = macro __cont__(() -> untyped ${c.expr});
 									var values = [macro var $cname];
 									if (ctype != null)
 										cases.push({
@@ -257,8 +263,9 @@ class Async {
 							pos: expr.pos
 						}
 					}
+					te.ctx.res.expr = (macro __resolve__(${copy(te.ctx.res)})).expr;
 					var _expr = macro(__cont__ -> {
-						new sasync.Future.Present((__resolve__, __reject__) -> ${te.expr}).handle(__cont__, $errName -> ${ctx.rej});
+						new sasync.Future.Present((__resolve__, __reject__) -> ${te.expr}).handle($name -> __cont__(() -> $nameRef), $errName -> ${ctx.rej});
 					})(__res__ -> ${ctx.res});
 					expr = macro $_expr;
 				}
@@ -310,6 +317,14 @@ class Async {
 					}
 				}
 
+			// string interpolation
+			case EConst(CString(s, kind)):
+				switch kind {
+					case SingleQuotes:
+						return transform(s.formatString(expr.pos));
+					default:
+				}
+
 			default:
 				expr.map(append);
 		}
@@ -324,19 +339,14 @@ class Async {
 		return switch it.expr {
 			case EBinop(_, e1, e2):
 				switch e1.expr {
-					case EConst(c):
-						switch c {
-							case CIdent(s):
-								transform(macro {
-									final __iterable__ = $e2;
-									while (__iterable__.hasNext()) {
-										var $s = __iterable__.next();
-										$expr;
-									}
-								});
-							default:
-								null;
-						}
+					case EConst(CIdent(s)):
+						transform(macro {
+							final __iterable__ = $e2;
+							while (__iterable__.hasNext()) {
+								var $s = __iterable__.next();
+								$expr;
+							}
+						});
 					default:
 						null;
 				}

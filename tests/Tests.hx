@@ -2,22 +2,33 @@ package;
 
 import sasync.Async;
 
-class Tests {
+using haxe.macro.Expr;
+
+abstract class ATest {
+	public function new() {}
+
+	@async abstract function testAbstract():Int;
+}
+
+class Tests extends ATest {
 	public static function main() {
-		runTests().catchError(e -> trace(e));
+		var run = runTests();
+		run.finally(() -> {
+			trace('Tests finished with status ${run.status}');
+		});
 	}
 
 	@async static function runTests():Void {
 		@await testSimple();
 
 		var ret = @await testReturn();
-		trace('Return test: $ret\n');
+		trace('Return test: ${ret}\n');
 
 		var nested = @await testNested();
-		trace('Nested test: $nested\n');
+		trace('Nested test: ${nested}\n');
 
-		var results = @await testParallel();
-		trace('Parallel test: $results\n');
+		var parallel = testParallel();
+		trace('Parallel test: ${@await parallel}\n');
 
 		try {
 			@await testError();
@@ -28,6 +39,10 @@ class Tests {
 
 		@await testIfElse(true);
 		@await testIfElse(false);
+	}
+
+	@async function testAbstract():Int {
+		return @await testAdd(1, 2);
 	}
 
 	@async static function testSimple():Void {

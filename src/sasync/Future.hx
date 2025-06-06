@@ -26,16 +26,16 @@ abstract Future<T:Any>(Present<T>) {
 	}
 }
 
-class Present<T:Any> {
+class Present<T> {
 	var handlers:Array<Handler<T>> = [];
 
 	public var status:Status<T> = Pending;
 
 	public function new(task:(?T->Void, Dynamic->Void)->Void) {
 		try {
-			task(_resolve, _reject);
+			task(resolve, reject);
 		} catch (e)
-			_reject(e);
+			reject(e);
 	}
 
 	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
@@ -58,7 +58,7 @@ class Present<T:Any> {
 		handle(_ -> onFinally(), _ -> onFinally());
 	}
 
-	function _resolve(?value:T) {
+	function resolve(?value:T) {
 		switch status {
 			case Pending:
 				status = Resolved(value);
@@ -68,7 +68,7 @@ class Present<T:Any> {
 		}
 	}
 
-	function _reject(reason:Dynamic) {
+	function reject(reason:Dynamic) {
 		switch status {
 			case Pending:
 				status = Rejected(reason);
@@ -89,10 +89,11 @@ private class Handler<T> {
 	}
 
 	public function resolve(?value:T) {
-		try {
-			onResolved(value);
-		} catch (e)
-			reject(e);
+		if (onResolved != null)
+			try {
+				onResolved(value);
+			} catch (e)
+				reject(e);
 	}
 
 	public function reject(reason:Dynamic) {
