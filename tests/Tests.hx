@@ -1,23 +1,31 @@
 package;
 
-import sasync.Future;
 import sasync.Async;
 
-@await class Tests {
+class Tests {
 	public static function main() {
-		runTests().finally(() -> trace("All tests finished"));
+		runTests().catchError(e -> trace(e));
 	}
 
-	@async static function runTests() {
-		testError().catchError(e -> trace('Caught error: $e\n'));
+	@async static function runTests():Void {
 		@await testSimple();
+
 		var ret = @await testReturn();
 		trace('Return test: $ret\n');
+
 		var nested = @await testNested();
 		trace('Nested test: $nested\n');
+
 		var results = @await testParallel();
 		trace('Parallel test: $results\n');
+
+		try {
+			@await testError();
+		} catch (e)
+			trace('Caught error: $e\n');
+
 		@await testLoop();
+
 		@await testIfElse(true);
 		@await testIfElse(false);
 	}
@@ -72,7 +80,7 @@ import sasync.Async;
 		}
 	}
 
-	@async static function testIfElse(flag:Bool) {
+	@async static function testIfElse(flag:Bool):Void {
 		@await Async.sleep(0.2);
 		if (flag)
 			trace("Branch: TRUE");

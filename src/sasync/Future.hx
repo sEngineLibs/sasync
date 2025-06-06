@@ -2,30 +2,44 @@ package sasync;
 
 import haxe.MainLoop;
 
-enum FutureStatus<T> {
+enum Status<T> {
 	Pending;
 	Resolved(value:T);
 	Rejected(reason:Dynamic);
 }
 
-class Future<T> {
-	var handlers:Array<FutureHandler<T>> = [];
+abstract None(Void) from Void {}
 
-	public var status:FutureStatus<T> = Pending;
+@:forward()
+abstract Future<T:Any>(Present<T>) {
+	public function new(task:(?T->Void, Dynamic->Void)->Void) {
+		this = new Present<T>((resolve, reject) -> {
+			var event = null;
+			event = MainLoop.add(() -> {
+				event.stop();
+				try {
+					task(resolve, reject);
+				} catch (e)
+					reject(e);
+			});
+		});
+	}
+}
+
+class Present<T:Any> {
+	var handlers:Array<Handler<T>> = [];
+
+	public var status:Status<T> = Pending;
 
 	public function new(task:(?T->Void, Dynamic->Void)->Void) {
-		var event = null;
-		event = MainLoop.add(() -> {
-			event.stop();
-			try {
-				task(_resolve, _reject);
-			} catch (e)
-				_reject(e);
-		});
+		try {
+			task(_resolve, _reject);
+		} catch (e)
+			_reject(e);
 	}
 
 	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
-		var handler = new FutureHandler(onResolved, onRejected);
+		var handler = new Handler(onResolved, onRejected);
 		switch status {
 			case Resolved(value):
 				handler.resolve(value);
@@ -65,7 +79,7 @@ class Future<T> {
 	}
 }
 
-private class FutureHandler<T> {
+private class Handler<T> {
 	var onResolved:T->Void;
 	var onRejected:Dynamic->Void;
 

@@ -9,22 +9,19 @@ using haxe.macro.ExprTools;
 using haxe.macro.TypeTools;
 using haxe.macro.ComplexTypeTools;
 
+typedef AwaitContext = {
+	res:Expr,
+	rej:Expr,
+}
+
 typedef AsyncContext = {
-	awaitCont:Expr,
+	ctx:AwaitContext,
 	expr:Expr
 }
 #end
 
-class Async<T> {
-	public static function resolve<T>(value:T) {
-		return new Future((resolve, _) -> resolve(value));
-	}
-
-	public static function reject<T>(value:T) {
-		return new Future((_, reject) -> reject(value));
-	}
-
-	public static function gather<T>(iterable:Array<Future<T>>):Future<Array<T>> {
+class Async {
+	public static function gather<T:Any>(iterable:Array<Future<T>>):Future<Array<T>> {
 		return new Future((resolve, reject) -> {
 			var ret = [];
 			for (i in iterable)
@@ -36,7 +33,7 @@ class Async<T> {
 		});
 	}
 
-	public static function race<T>(iterable:Array<Future<T>>):Future<T> {
+	public static function race<T:Any>(iterable:Array<Future<T>>):Future<T> {
 		return new Future((resolve, reject) -> {
 			for (i in iterable)
 				i.handle(resolve, reject);
@@ -97,11 +94,17 @@ class Async<T> {
 		awaitIndex = 0;
 		contIndex = 0;
 		repeatIndex = 0;
-		f.ret = null;
 
-		var t = transformTask(f.expr);
-		f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
-		f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
+		var fret = f.ret;
+		if (fret != null) {
+			if (fret.toString() == "Void")
+				fret = macro :sasync.Future.None;
+			f.ret = macro :sasync.Future<$fret>;
+			var t = transformTask(f.expr);
+			f.expr = transform(t.transformed ? t.expr : concat(t.expr, macro __resolve__())).expr;
+			f.expr = macro return new sasync.Future((__resolve__, __reject__) -> ${f.expr});
+		} else
+			Context.error("Async functions must be type-hinted", f.expr.pos);
 	}
 
 	static function transformTask(expr:Expr) {
@@ -128,20 +131,20 @@ class Async<T> {
 	}
 
 	static function transform(expr:Expr):AsyncContext {
-		var awaitCont:Expr = null;
+		var ctx:AwaitContext = null;
 
 		function append(e:Expr) {
 			var t = transform(e);
-			if (t.awaitCont != null) {
-				e.expr = t.awaitCont.expr;
-				if (awaitCont == null) {
-					awaitCont = t.awaitCont;
-					awaitCont.expr = expr.expr;
+			if (t.ctx != null) {
+				e.expr = t.ctx.res.expr;
+				if (ctx == null) {
+					t.ctx.res.expr = expr.expr;
 					expr = t.expr;
+					ctx = t.ctx;
 				} else {
-					t.awaitCont.expr = awaitCont.expr;
-					awaitCont.expr = t.expr.expr;
-					awaitCont = t.awaitCont;
+					t.ctx.res.expr = ctx.res.expr;
+					ctx.res.expr = t.expr.expr;
+					ctx.res = t.ctx.res;
 				}
 			}
 			return t.expr;
@@ -158,8 +161,11 @@ class Async<T> {
 
 			case EMeta(s, e) if (["await", ":await"].contains(s.name)):
 				var name = '__await${awaitIndex++}__';
-				awaitCont = macro untyped $i{name};
-				expr = macro $e.handle($name -> ${awaitCont}, __reject__);
+				ctx = {
+					res: macro $i{name},
+					rej: macro __reject__
+				}
+				expr = macro $e.handle($name -> ${ctx.res}, ${ctx.rej});
 
 			case EBlock(exprs):
 				var rest = exprs.copy();
@@ -167,10 +173,10 @@ class Async<T> {
 				while (rest.length > 0) {
 					var t = transform(rest.shift());
 					ret.push(t.expr);
-					if (t.awaitCont != null) {
-						awaitCont = t.awaitCont;
+					if (t.ctx != null) {
+						ctx = t.ctx;
 						if (rest.length > 0)
-							awaitCont.expr = concat(copy(awaitCont), transform(block(rest)).expr).expr;
+							ctx.res.expr = concat(copy(ctx.res), transform(block(rest)).expr).expr;
 						break;
 					}
 				}
@@ -183,27 +189,81 @@ class Async<T> {
 				var tecond = transform(econd);
 				var te = transform(e);
 
-				if (te.awaitCont != null) {
+				if (te.ctx != null) {
 					var name = '__ret${awaitIndex++}__';
 					var fname = '__repeat${repeatIndex++}__';
 					var fnameRef = macro $i{fname};
 
-					te.awaitCont.expr = concat(copy(te.awaitCont), macro $fnameRef($econd)).expr;
-					awaitCont = macro {};
+					te.ctx.res.expr = concat(copy(te.ctx.res), macro $fnameRef($econd)).expr;
+					ctx = {
+						res: macro {},
+						rej: te.ctx.rej
+					}
 					var awaitExpr = unloop(te.expr, econd, fnameRef);
-					var repeatExpr = macro if (__cond__) $awaitExpr else $awaitCont;
+					var repeatExpr = macro if (__cond__) $awaitExpr else ${ctx.res};
 					expr = macro {
 						function $fname(__cond__ : Bool) $repeatExpr;
 						$fnameRef($econd);
 					};
 
-					if (tecond.awaitCont != null) {
-						tecond.awaitCont.expr = copy(repeatExpr).expr;
+					if (tecond.ctx != null) {
+						tecond.ctx.res.expr = copy(repeatExpr).expr;
 						repeatExpr.expr = tecond.expr.expr;
 					}
 				}
 
-			case ETry(_, _), ESwitch(_, _, _), EIf(_, _, _), ETernary(_, _, _):
+			case ETry(e, catches):
+				var te = transform(e);
+				if (te.ctx != null) {
+					var i = awaitIndex++;
+					var errName = '__error${i}__';
+					var errRef = macro $i{errName};
+					ctx = {
+						res: macro __res__(),
+						rej: {
+							expr: {
+								var omitted = false;
+								var cases = [];
+								for (c in catches) {
+									var cname = c.name;
+									var ctype = c.type;
+									var tcexpr = transform(c.expr);
+									var cexpr;
+									if (tcexpr.ctx != null) {
+										tcexpr.ctx.res.expr = (macro __cont__(() -> ${copy(tcexpr.ctx.res)})).expr;
+										cexpr = tcexpr.expr;
+									} else
+										cexpr = macro __cont__(() -> ${c.expr});
+									var values = [macro var $cname];
+									if (ctype != null)
+										cases.push({
+											values: values,
+											guard: macro $errRef is $ctype,
+											expr: cexpr
+										});
+									else {
+										omitted = true;
+										cases.push({
+											values: values,
+											guard: null,
+											expr: cexpr
+										});
+										break;
+									}
+								}
+								var def = omitted ? null : macro __reject__($errRef);
+								ESwitch(errRef, cases, def);
+							},
+							pos: expr.pos
+						}
+					}
+					var _expr = macro(__cont__ -> {
+						new sasync.Future.Present((__resolve__, __reject__) -> ${te.expr}).handle(__cont__, $errName -> ${ctx.rej});
+					})(__res__ -> ${ctx.res});
+					expr = macro $_expr;
+				}
+
+			case ESwitch(_, _, _), EIf(_, _, _), ETernary(_, _, _):
 				var og = copy(expr);
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
@@ -213,7 +273,7 @@ class Async<T> {
 						var t = transform(e);
 						ts.set(e, t);
 						e.expr = t.expr.expr;
-						if (t.awaitCont != null)
+						if (t.ctx != null)
 							delayed = true;
 					}
 					e;
@@ -221,26 +281,33 @@ class Async<T> {
 
 				if (delayed) {
 					var name = '__cont${contIndex++}__';
-					var _awaitCont = macro $i{name}();
+					var _continuation = macro $i{name}();
+
 					var _expr = macro(__cont__ -> ${
 						mapScoped(og, e -> e, e -> {
 							if (e != null) {
 								var t = ts.get(e);
-								if (t.awaitCont != null) {
-									t.awaitCont.expr = (macro __cont__(() -> ${copy(t.awaitCont)})).expr;
+								if (t.ctx != null) {
+									t.ctx.res.expr = (macro __cont__(() -> ${copy(t.ctx.res)})).expr;
 									macro ${t.expr};
 								} else
-									macro __cont__(() -> $e);
+									macro __cont__(() -> untyped $e);
 							} else
 								macro __cont__(() -> {});
 						})
-					})($name -> $_awaitCont);
+					})($name -> $_continuation);
 
-					if (awaitCont != null)
-						awaitCont.expr = _expr.expr;
-					else
+					if (ctx != null) {
+						ctx.res.expr = _expr.expr;
+						ctx.res = _continuation;
+						ctx.rej = macro __reject__;
+					} else {
 						expr = _expr;
-					awaitCont = _awaitCont;
+						ctx = {
+							res: _continuation,
+							rej: macro __reject__
+						}
+					}
 				}
 
 			default:
@@ -248,7 +315,7 @@ class Async<T> {
 		}
 
 		return {
-			awaitCont: awaitCont,
+			ctx: ctx,
 			expr: expr
 		}
 	}
