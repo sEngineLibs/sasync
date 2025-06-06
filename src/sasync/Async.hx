@@ -99,21 +99,22 @@ class Async {
 		futureIndex = 0;
 
 		var fret = f.ret;
-		if (fret != null) {
-			if (!isAbstract && f.expr != null) {
-				f.ret = null;
-				var i = ++futureIndex;
-				var resName = '__res${i}__';
-				var resRef = macro $i{resName};
-				var rejName = '__rej${i}__';
-				var t = transformTask(f.expr);
-				f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
-				f.expr = transform(f.expr).expr;
-				f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr});
-			} else
+		if (isAbstract)
+			if (fret != null)
 				f.ret = macro :sasync.Future<$fret>;
-		} else
-			Context.error("Async functions must be type-hinted", f.expr.pos);
+			else
+				Context.error("Async functions must be type-hinted", f.expr.pos);
+		else {
+			f.ret = null;
+			var i = ++futureIndex;
+			var resName = '__res${i}__';
+			var resRef = macro $i{resName};
+			var rejName = '__rej${i}__';
+			var t = transformTask(f.expr);
+			f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
+			f.expr = transform(f.expr).expr;
+			f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr});
+		}
 	}
 
 	static function transformTask(expr:Expr) {
