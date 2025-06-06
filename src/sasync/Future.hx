@@ -8,34 +8,20 @@ enum Status<T> {
 	Rejected(reason:Dynamic);
 }
 
-abstract None(Void) from Void {}
-
-@:forward()
-abstract Future<T:Any>(Present<T>) {
-	public function new(task:(?T->Void, Dynamic->Void)->Void) {
-		this = new Present<T>((resolve, reject) -> {
-			var event = null;
-			event = MainLoop.add(() -> {
-				event.stop();
-				try {
-					task(resolve, reject);
-				} catch (e)
-					reject(e);
-			});
-		});
-	}
-}
-
-class Present<T> {
+class Future<T> {
 	var handlers:Array<Handler<T>> = [];
 
 	public var status:Status<T> = Pending;
 
 	public function new(task:(?T->Void, Dynamic->Void)->Void) {
-		try {
-			task(resolve, reject);
-		} catch (e)
-			reject(e);
+		var event = null;
+		event = MainLoop.add(() -> {
+			event.stop();
+			try {
+				task(resolve, reject);
+			} catch (e)
+				reject(e);
+		});
 	}
 
 	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {

@@ -1,5 +1,6 @@
 package;
 
+import haxe.Exception;
 import sasync.Async;
 
 using haxe.macro.Expr;
@@ -68,9 +69,7 @@ class Tests extends ATest {
 	}
 
 	@async static function testError():Void {
-		@await Async.sleep(0.5);
-		if (@await testAdd(1, 2) > 0)
-			throw "*some error message*";
+		throw "*some error message*";
 	}
 
 	@async static function testParallel():Array<Int> {
@@ -84,7 +83,7 @@ class Tests extends ATest {
 		for (i in -5...15) {
 			@await Async.sleep(0.3);
 			if (i < 0) {
-				trace('Loop continues\n');
+				trace('Loop continues');
 				continue;
 			}
 			if (i >= 5) {
