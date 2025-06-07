@@ -81,6 +81,7 @@ class Async {
 				switch field.kind {
 					case FFun(f):
 						buildAsync(f, field.access.contains(AAbstract));
+						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -100,10 +101,15 @@ class Async {
 		repeatIndex = 0;
 		futureIndex = 0;
 
-		if (f.ret != null) {
-			if (f.ret.toString() == "Void")
-				f.ret = macro :sasync.Async.None;
-			var fret = f.ret;
+		var void = false;
+
+		var fret = f.ret;
+
+		if (fret != null) {
+			if (fret.toString() == "Void") {
+				void = true;
+				fret = macro :sasync.Async.None;
+			}
 			f.ret = macro :sasync.Future<$fret>;
 		}
 
@@ -119,9 +125,14 @@ class Async {
 			var resRef = macro $i{resName};
 			var rejName = '__rej${i}__';
 			var t = transformTask(f.expr);
-			f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
-			f.expr = transform(f.expr).expr;
-			f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr}, __pos__);
+
+			if (fret != null && !void && !t.transformed)
+				Context.error('Missing return: ${fret.toString()}', f.expr.pos);
+			else {
+				f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
+				f.expr = transform(f.expr).expr;
+				f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr}, __pos__);
+			}
 		}
 	}
 
@@ -238,7 +249,8 @@ class Async {
 				if (te.ctx != null) {
 					var errName = '__error${++awaitIndex}__';
 					var errRef = macro $i{errName};
-
+					var contName = '__cont${++contIndex}__';
+					var contRef = macro $i{contName};
 					var resName = '__res${futureIndex}__';
 					var resRef = macro $i{resName};
 					var rejName = '__rej${futureIndex}__';
@@ -249,7 +261,7 @@ class Async {
 					te.ctx.rej.expr = rejRef.expr;
 
 					ctx = {
-						res: macro __res__(),
+						res: macro $contRef(),
 						rej: {
 							expr: {
 								var omitted = false;
@@ -292,7 +304,7 @@ class Async {
 					}
 
 					expr = macro {
-						function $resName<T>(__res__ : Void->T) ${ctx.res}
+						function $resName<T>($contName:Void -> T) ${ctx.res}
 						function $rejName($errName:Dynamic) ${ctx.rej}
 						try
 							${te.expr} catch ($errName)
@@ -306,6 +318,7 @@ class Async {
 				var og = copy(expr);
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
+				var pfutureIndex = futureIndex++;
 
 				mapScoped(og, append, e -> {
 					if (e != null) {
@@ -319,36 +332,51 @@ class Async {
 				});
 
 				if (delayed) {
-					var name = '__cont${++contIndex}__';
-					var _continuation = macro $i{name}();
+					var errName = '__error${++awaitIndex}__';
+					var errRef = macro $i{errName};
+					var prejRef = macro $i{'__rej${pfutureIndex}__'};
 
-					var _expr = macro(__cont__ -> ${
-						mapScoped(og, e -> e, e -> {
-							if (e != null) {
-								var t = ts.get(e);
-								if (t.ctx != null) {
-									t.ctx.res.expr = (macro __cont__(() -> ${copy(t.ctx.res)})).expr;
-									macro ${t.expr};
-								} else
-									macro __cont__(() -> $e);
+					var resName = '__res${futureIndex}__';
+					var resRef = macro $i{resName};
+					var rejName = '__rej${futureIndex}__';
+					var rejRef = prejRef;
+
+					var contName = '__cont${++contIndex}__';
+					var contRef = macro $i{contName}();
+
+					var _expr = mapScoped(og, e -> e, e -> {
+						if (e != null) {
+							var t = ts.get(e);
+							if (t.ctx != null) {
+								t.ctx.res.expr = (macro $resRef(() -> ${copy(t.ctx.res)})).expr;
+								macro ${t.expr};
 							} else
-								macro __cont__(() -> {});
-						})
-					})($name -> $_continuation);
+								macro $resRef(() -> $e);
+						} else
+							macro $resRef(() -> null);
+					});
+
+					expr = macro {
+						function $resName<T>($contName:Void -> T) $contRef;
+						final $rejName = $rejRef;
+						$expr;
+					}
 
 					var rej = macro $i{'__rej${futureIndex}__'};
+
 					if (ctx != null) {
 						ctx.res.expr = _expr.expr;
-						ctx.res = _continuation;
+						ctx.res = contRef;
 						ctx.rej = rej;
 					} else {
 						expr = _expr;
 						ctx = {
-							res: _continuation,
+							res: contRef,
 							rej: rej
 						}
 					}
 				}
+				futureIndex = pfutureIndex;
 
 			// string interpolation
 			case EConst(CString(s, kind)):

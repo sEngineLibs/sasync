@@ -1,12 +1,13 @@
 package sasync;
 
 import haxe.MainLoop;
+import haxe.Exception;
 import slog.Log;
 
 enum Status<T> {
 	Pending;
 	Resolved(value:T);
-	Rejected(reason:Dynamic);
+	Rejected(error:Exception);
 }
 
 class Future<T:Any> {
@@ -16,7 +17,7 @@ class Future<T:Any> {
 
 	public var status:Status<T> = Pending;
 
-	public function new(task:(?T->Void, Dynamic->Void)->Void, ?pos:haxe.PosInfos) {
+	public function new(task:(?T->Void, Exception->Void)->Void, ?pos:haxe.PosInfos) {
 		callstack.push(pos);
 		var event = null;
 		event = MainLoop.add(() -> {
@@ -28,7 +29,7 @@ class Future<T:Any> {
 		});
 	}
 
-	public function handle(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+	public function handle(onResolved:T->Void, ?onRejected:Exception->Void) {
 		this.handler = new Handler(onResolved, onRejected);
 	}
 
@@ -43,7 +44,7 @@ class Future<T:Any> {
 		}
 	}
 
-	function reject(error:Dynamic) {
+	function reject(error:Exception) {
 		switch status {
 			case Pending:
 				status = Rejected(error);
@@ -55,7 +56,7 @@ class Future<T:Any> {
 		}
 	}
 
-	function throwError(error:Dynamic) {
+	function throwError(error:Exception) {
 		var pos = callstack.shift();
 		Log.trace('Uncaught exception $error in ${pos.className}.${pos.methodName}', Log.Red, Log.ERROR, pos);
 		while (callstack.length > 0) {
@@ -71,9 +72,9 @@ class Future<T:Any> {
 
 private class Handler<T> {
 	var onResolved:T->Void;
-	var onRejected:Dynamic->Void;
+	var onRejected:Exception->Void;
 
-	public function new(onResolved:T->Void, ?onRejected:Dynamic->Void) {
+	public function new(onResolved:T->Void, ?onRejected:Exception->Void) {
 		this.onResolved = onResolved;
 		this.onRejected = onRejected;
 	}
@@ -86,8 +87,8 @@ private class Handler<T> {
 				reject(e);
 	}
 
-	public function reject(reason:Dynamic) {
+	public function reject(error:Exception) {
 		if (onRejected != null)
-			onRejected(reason);
+			onRejected(error);
 	}
 }
