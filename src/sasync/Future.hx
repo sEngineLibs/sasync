@@ -1,6 +1,5 @@
 package sasync;
 
-import haxe.MainLoop;
 import haxe.Exception;
 import slog.Log;
 
@@ -19,14 +18,10 @@ class Future<T:Any> {
 
 	public function new(task:(?T->Void, Exception->Void)->Void, ?pos:haxe.PosInfos) {
 		callstack.push(pos);
-		var event = null;
-		event = MainLoop.add(() -> {
-			event.stop();
-			try {
-				task(resolve, reject);
-			} catch (e)
-				reject(e);
-		});
+		haxe.Timer.delay(() -> try {
+			task(resolve, reject);
+		} catch (e)
+			reject(e), 0);
 	}
 
 	public function handle(onResolved:T->Void, ?onRejected:Exception->Void) {

@@ -81,7 +81,6 @@ class Async {
 				switch field.kind {
 					case FFun(f):
 						buildAsync(f, field.access.contains(AAbstract));
-						trace(f.expr.toString());
 					default:
 						Context.warning("This has no effect", m.pos);
 				}
@@ -318,9 +317,11 @@ class Async {
 				var og = copy(expr);
 				var ts:Map<Expr, AsyncContext> = [];
 				var delayed = false;
-				var pfutureIndex = futureIndex++;
 
-				mapScoped(og, append, e -> {
+				mapScoped(og, append, e -> e);
+
+				var pfutureIndex = futureIndex++;
+				mapScoped(og, e -> e, e -> {
 					if (e != null) {
 						var t = transform(e);
 						ts.set(e, t);
@@ -367,14 +368,11 @@ class Async {
 					if (ctx != null) {
 						ctx.res.expr = _expr.expr;
 						ctx.res = contRef;
-						ctx.rej = rej;
-					} else {
-						expr = _expr;
+					} else
 						ctx = {
 							res: contRef,
 							rej: rej
 						}
-					}
 				}
 				futureIndex = pfutureIndex;
 
