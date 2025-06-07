@@ -1,9 +1,7 @@
 package;
 
-import haxe.Exception;
 import sasync.Async;
-
-using haxe.macro.Expr;
+import slog.Log;
 
 abstract class ATest {
 	public function new() {}
@@ -13,43 +11,44 @@ abstract class ATest {
 
 class Tests extends ATest {
 	public static function main() {
-		var run = runTests();
-		run.finally(() -> {
-			trace('Tests finished with status ${run.status}');
-		});
+		runTests();
 	}
 
 	@async static function runTests():Void {
 		@await testSimple();
 
 		var ret = @await testReturn();
-		trace('Return test: ${ret}\n');
+		Log.debug('Return test: ${ret}\n');
 
 		var nested = @await testNested();
-		trace('Nested test: ${nested}\n');
+		Log.debug('Nested test: ${nested}\n');
 
 		var parallel = testParallel();
-		trace('Parallel test: ${@await parallel}\n');
+		Log.debug('Parallel test: ${@await parallel}\n');
+
+		Log.debug('Abstract test: ${@await new Tests().testAbstract()}\n');
 
 		try {
 			@await testError();
 		} catch (e)
-			trace('Caught error: $e\n');
+			Log.debug('Error test: $e\n');
 
 		@await testLoop();
 
 		@await testIfElse(true);
 		@await testIfElse(false);
+
+		Log.debug('Tests finished');
 	}
 
-	@async function testAbstract():Int {
-		return @await testAdd(1, 2);
+	@async function testAbstract() {
+		return @await testAdd(1, 2) + 3;
 	}
 
 	@async static function testSimple():Void {
-		trace("Simple test...");
+		Log.debug("Simple test...");
 		@await Async.sleep(0.1);
-		trace("Simple done.\n");
+		Log.debug("Simple done.\n");
 	}
 
 	@async static function testReturn():String {
@@ -83,22 +82,22 @@ class Tests extends ATest {
 		for (i in -5...15) {
 			@await Async.sleep(0.3);
 			if (i < 0) {
-				trace('Loop continues');
+				Log.debug('Loop continues');
 				continue;
 			}
 			if (i >= 5) {
-				trace('Loop breaks\n');
+				Log.debug('Loop breaks\n');
 				break;
 			}
-			trace('Loop step: $i');
+			Log.debug('Loop step: $i');
 		}
 	}
 
 	@async static function testIfElse(flag:Bool):Void {
 		@await Async.sleep(0.2);
 		if (flag)
-			trace("Branch: TRUE");
+			Log.debug("Branch: TRUE");
 		else
-			trace("Branch: FALSE\n");
+			Log.debug("Branch: FALSE\n");
 	}
 }

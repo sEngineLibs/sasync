@@ -1,3 +1,4 @@
+-L slog
 -L sasync
 -D analyzer-optimize
 -cp tests

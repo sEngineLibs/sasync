@@ -12,7 +12,7 @@ using haxe.macro.ComplexTypeTools;
 
 typedef AwaitContext = {
 	res:Expr,
-	rej:Expr,
+	rej:Expr
 }
 
 typedef AsyncContext = {
@@ -20,6 +20,8 @@ typedef AsyncContext = {
 	expr:Expr
 }
 #end
+
+abstract None(Void) {}
 
 class Async {
 	public static function gather<T:Any>(iterable:Array<Future<T>>):Future<Array<T>> {
@@ -98,14 +100,20 @@ class Async {
 		repeatIndex = 0;
 		futureIndex = 0;
 
-		var fret = f.ret;
-		if (isAbstract)
-			if (fret != null)
-				f.ret = macro :sasync.Future<$fret>;
-			else
-				Context.error("Async functions must be type-hinted", f.expr.pos);
-		else {
-			f.ret = null;
+		if (f.ret != null) {
+			if (f.ret.toString() == "Void")
+				f.ret = macro :sasync.Async.None;
+			var fret = f.ret;
+			f.ret = macro :sasync.Future<$fret>;
+		}
+
+		f.args.push({
+			name: "__pos__",
+			opt: true,
+			type: macro :haxe.PosInfos
+		});
+
+		if (!isAbstract && f.expr != null) {
 			var i = ++futureIndex;
 			var resName = '__res${i}__';
 			var resRef = macro $i{resName};
@@ -113,7 +121,7 @@ class Async {
 			var t = transformTask(f.expr);
 			f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
 			f.expr = transform(f.expr).expr;
-			f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr});
+			f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr}, __pos__);
 		}
 	}
 
@@ -224,19 +232,21 @@ class Async {
 				}
 
 			case ETry(e, catches):
+				var pfutureIndex = futureIndex++;
+
 				var te = transform(e);
 				if (te.ctx != null) {
 					var errName = '__error${++awaitIndex}__';
 					var errRef = macro $i{errName};
 
-					var pfutureIndex = futureIndex;
-					var resName = '__res${++futureIndex}__';
+					var resName = '__res${futureIndex}__';
 					var resRef = macro $i{resName};
 					var rejName = '__rej${futureIndex}__';
 					var rejRef = macro $i{rejName};
+					var prejRef = macro $i{'__rej${pfutureIndex}__'};
 
 					te.ctx.res.expr = (macro $resRef(() -> ${copy(te.ctx.res)})).expr;
-					te.ctx.rej.expr = (macro $i{'__rej${futureIndex}__'}).expr;
+					te.ctx.rej.expr = rejRef.expr;
 
 					ctx = {
 						res: macro __res__(),
@@ -250,7 +260,8 @@ class Async {
 									var tcexpr = transform(c.expr);
 									var cexpr;
 									if (tcexpr.ctx != null) {
-										tcexpr.ctx.res.expr = (macro $resRef(${copy(tcexpr.ctx.res)})).expr;
+										tcexpr.ctx.res.expr = (macro $resRef(() -> ${copy(tcexpr.ctx.res)})).expr;
+										tcexpr.ctx.rej.expr = prejRef.expr;
 										cexpr = tcexpr.expr;
 									} else
 										cexpr = macro $resRef(() -> ${c.expr});
@@ -271,7 +282,9 @@ class Async {
 										break;
 									}
 								}
-								var def = omitted ? null : macro $i{'__rej${pfutureIndex}__'}($errRef);
+								var def = null;
+								if (!omitted)
+									def = macro $prejRef($errRef);
 								ESwitch(errRef, cases, def);
 							},
 							pos: expr.pos
@@ -285,7 +298,7 @@ class Async {
 							${te.expr} catch ($errName)
 							$rejRef($errRef);
 					}
-					ctx.rej = rejRef;
+					ctx.rej = macro null;
 					futureIndex = pfutureIndex;
 				}
 
