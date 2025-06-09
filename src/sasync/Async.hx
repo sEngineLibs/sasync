@@ -21,11 +21,11 @@ typedef AsyncContext = {
 }
 #end
 
-abstract None(Void) {}
+final class None {}
 
 class Async {
-	public static function gather<T:Any>(iterable:Array<Future<T>>):Future<Array<T>> {
-		return new Future((resolve, reject) -> {
+	public static function gather<T:Any>(iterable:Array<Lazy<T>>):Lazy<Array<T>> {
+		return new Lazy((resolve, reject) -> {
 			var ret = [];
 			for (i in iterable)
 				i.handle(v -> {
@@ -36,15 +36,15 @@ class Async {
 		});
 	}
 
-	public static function race<T:Any>(iterable:Array<Future<T>>):Future<T> {
-		return new Future((resolve, reject) -> {
+	public static function race<T:Any>(iterable:Array<Lazy<T>>):Lazy<T> {
+		return new Lazy((resolve, reject) -> {
 			for (i in iterable)
 				i.handle(resolve, reject);
 		});
 	}
 
 	public static function sleep(seconds:Float) {
-		return new Future((resolve, reject) -> haxe.Timer.delay(() -> resolve(), Std.int(seconds * 1000)));
+		return new Lazy((resolve, reject) -> haxe.Timer.delay(() -> resolve(), Std.int(seconds * 1000)));
 	}
 
 	#if macro
@@ -101,7 +101,6 @@ class Async {
 		futureIndex = 0;
 
 		var void = false;
-
 		var fret = f.ret;
 
 		if (fret != null) {
@@ -109,7 +108,7 @@ class Async {
 				void = true;
 				fret = macro :sasync.Async.None;
 			}
-			f.ret = macro :sasync.Future<$fret>;
+			f.ret = macro :sasync.Lazy<$fret>;
 		}
 
 		f.args.push({
@@ -130,7 +129,7 @@ class Async {
 			else {
 				f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
 				f.expr = transform(f.expr).expr;
-				f.expr = macro return new sasync.Future(($resName, $rejName) -> ${f.expr}, __pos__);
+				f.expr = macro return new sasync.Lazy(($resName, $rejName) -> ${f.expr}, __pos__);
 			}
 		}
 	}
@@ -357,10 +356,11 @@ class Async {
 							macro $resRef(() -> null);
 					});
 
+					var og = expr;
 					expr = macro {
 						function $resName<T>($contName:Void -> T) $contRef;
 						final $rejName = $rejRef;
-						$expr;
+						$og;
 					}
 
 					var rej = macro $i{'__rej${futureIndex}__'};
@@ -368,11 +368,13 @@ class Async {
 					if (ctx != null) {
 						ctx.res.expr = _expr.expr;
 						ctx.res = contRef;
-					} else
+					} else {
+						og.expr = _expr.expr;
 						ctx = {
 							res: contRef,
 							rej: rej
 						}
+					}
 				}
 				futureIndex = pfutureIndex;
 

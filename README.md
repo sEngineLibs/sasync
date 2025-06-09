@@ -12,13 +12,12 @@ haxelib install sasync
 
 ## Features
 
--   Works with `sys.thread` and `ElasticThreadPool` on threaded targets.
 -   Useful for IO-bound or CPU-bound async tasks.
 -   Custom metadata:
     -   #### **`@async`**
-        Marks a function to be executed asynchronously. The function `<T>` will automatically return a `Promise<T>`. The body of the function will be run in a background thread. If an exception is thrown during execution, it will be captured and stored in the promise. If the function completes successfully, the result will be assigned to the promise.
+        Marks a function to be executed asynchronously. The function `<T>` will automatically return a `Lazy<T>`. The body of the function will be run in a background thread. If an exception is thrown during execution, it will be captured and stored in the lazy operation. If the function completes successfully, the result will be assigned to the lazy operation.
     -   #### **`@await`**
-        Marks an expression whose result should be awaited. The annotated expression must be a `Promise<T>`. At runtime, the current thread will wait for the result of the promise. If the awaited promise has an error, it will throw that error.
+        Marks an expression whose result should be awaited. The annotated expression must be a `Lazy<T>`. At runtime, the current thread will wait for the result of the lazy operation. If the awaited lazy operation has an error, it will throw that error.
 
 ---
 
@@ -50,7 +49,7 @@ project.addLibrary("sasync");
 }
 
 @async function tick():Void {
-    Sys.sleep(0.5); // simulate delay
+    @await Async.sleep(0.5); // simulate delay
 }
 ```
 
@@ -63,7 +62,7 @@ project.addLibrary("sasync");
 }
 ```
 
-> **Note:** You can use `@await` outside an `@async` function.
+> **Note:** You can't use `@await` outside an `@async` function.
 
 ---
 
@@ -80,16 +79,16 @@ All `@async` functions must be **explicitly type-hinted** (no type inference):
 This becomes:
 
 ```haxe
-function getInt():Promise<Int>
+function getInt():Lazy<Int>
 ```
 
-And returns a `Promise<T>` (injected automatically)
+And returns a `Lazy<T>` (injected automatically)
 
 ---
 
 ## Error Handling
 
-Exceptions thrown inside `@async` functions will be caught and re-thrown when awaited:
+Exceptions thrown inside `@async` functions can be caught when awaited just like synchronous:
 
 ```haxe
 @async function mightFail():Void {
@@ -113,7 +112,7 @@ You can launch multiple async jobs and await them independently:
 ```haxe
 var p1 = fetchData();
 var p2 = fetchData();
-var results = [@await p1, @await p2];
+var results = @await Async.gather([p1, p2]);
 ```
 
 ---
@@ -123,17 +122,17 @@ var results = [@await p1, @await p2];
 ```haxe
 class Example {
     static function main() {
-        @await run();
+        run();
     }
 
     @async static function run():Void {
-        var value = @await compute();
-        trace("Value = " + value);
+        var value = compute();
+        trace("Value = " + @await value);
     }
 
     @async static function compute():Int {
-        Sys.sleep(0.1);
-        return 1337;
+        @await Async.sleep(0.1);
+        return 1234;
     }
 }
 ```
@@ -142,5 +141,4 @@ class Example {
 
 ## Requirements
 
--   `sys.thread` target (e.g., C++, HashLink, Java, etc.)
 -   Haxe 4.2+

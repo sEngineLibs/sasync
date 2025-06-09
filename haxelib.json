@@ -10,5 +10,5 @@
     "dependencies": {
         "slog": ""
     },
-    "releasenote": "Add uncaught error callstack"
+    "releasenote": "Update readme"
 }

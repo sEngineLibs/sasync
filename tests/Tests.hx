@@ -11,12 +11,20 @@ abstract class ATest {
 
 class Tests extends ATest {
 	public static function main() {
+		#if eval
+		Log.info("Testing in Eval");
+		#elseif python
+		Log.info("Testing in Python");
+		#elseif js
+		Log.info("Testing in JS");
+		#elseif cpp
+		Log.info("Testing in C++");
+		#end
 		runTests();
 	}
 
 	@async static function runTests():Void {
 		@await testSimple();
-
 		var ret = @await testReturn();
 		Log.debug('Return test: ${ret}\n');
 
@@ -38,7 +46,7 @@ class Tests extends ATest {
 		@await testIfElse(true);
 		@await testIfElse(false);
 
-		Log.debug('Tests finished');
+		Log.debug('Tests finished!\n\n');
 	}
 
 	@async function testAbstract() {
