@@ -46,6 +46,12 @@ class Tests extends ATest {
 		@await testIfElse(true);
 		@await testIfElse(false);
 
+		var sleep = [
+			for (_ in 0...10)
+				testBackground(1.0)
+		];
+		Log.debug('Background test: ${@await Async.gather(sleep)}\n');
+
 		Log.debug('Tests finished!\n\n');
 	}
 
@@ -107,5 +113,12 @@ class Tests extends ATest {
 			Log.debug("Branch: TRUE");
 		else
 			Log.debug("Branch: FALSE\n");
+	}
+
+	@async static function testBackground(time:Float) {
+		#if sys
+		@await Async.background(() -> Sys.sleep(time));
+		#end
+		return time;
 	}
 }

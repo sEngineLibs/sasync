@@ -21,9 +21,17 @@ typedef AsyncContext = {
 }
 #end
 
-final class None {}
+typedef None = {}
 
 class Async {
+	/**
+	 * Executes all given `Lazy` tasks in parallel and returns a new `Lazy`
+	 * that resolves once all tasks are complete.
+	 * The result is an array of values in the order they complete (not the original order).
+	 *
+	 * @param iterable Array of `Lazy<T>` tasks to run.
+	 * @return A `Lazy` that resolves with an array of results.
+	 */
 	public static function gather<T:Any>(iterable:Array<Lazy<T>>):Lazy<Array<T>> {
 		return new Lazy((resolve, reject) -> {
 			var ret = [];
@@ -36,6 +44,14 @@ class Async {
 		});
 	}
 
+	/**
+	 * Returns a new `Lazy` that resolves or rejects as soon as the first
+	 * of the provided `Lazy` tasks does.
+	 * Similar to JavaScript's `Promise.race`.
+	 *
+	 * @param iterable Array of `Lazy<T>` tasks to race.
+	 * @return A `Lazy` that resolves with the result of the first completed task.
+	 */
 	public static function race<T:Any>(iterable:Array<Lazy<T>>):Lazy<T> {
 		return new Lazy((resolve, reject) -> {
 			for (i in iterable)
@@ -43,8 +59,65 @@ class Async {
 		});
 	}
 
-	public static function sleep(seconds:Float) {
+	/**
+	 * Returns a `Lazy` that resolves after a specified delay.
+	 *
+	 * @param seconds Number of seconds to wait.
+	 * @return A `Lazy` that completes after the given time.
+	 */
+	public static function sleep(seconds:Float):Lazy<None> {
 		return new Lazy((resolve, reject) -> haxe.Timer.delay(() -> resolve(), Std.int(seconds * 1000)));
+	}
+
+	/**
+	 * Runs a synchronous task in the background (threaded target only),
+	 * and returns a `Lazy` with the result.
+	 *
+	 * @param task A function returning a result to run in the background.
+	 * @return A `Lazy` that resolves with the task’s result.
+	 */
+	overload extern public static inline function background<T:Any>(task:Void->T) {
+		return new Lazy((resolve, reject) -> {
+			#if target.threaded
+			var events = sys.thread.Thread.current().events;
+			sys.thread.Thread.createWithEventLoop(() -> {
+				try {
+					var res = task();
+					events.runPromised(() -> resolve(res));
+				} catch (e)
+					events.runPromised(() -> reject(e));
+			});
+			events.promise();
+			#else
+			resolve(task());
+			#end
+		});
+	}
+
+	/**
+	 * Runs a void background task (no result). If the platform supports threads,
+	 * it runs in a separate thread; otherwise, it runs immediately.
+	 *
+	 * @param task A background function without a return value.
+	 * @return A `Lazy` that completes once the task is finished.
+	 */
+	overload extern public static inline function background(task:Void->Void) {
+		return new Lazy((resolve, reject) -> {
+			#if target.threaded
+			var events = sys.thread.Thread.current().events;
+			sys.thread.Thread.createWithEventLoop(() -> {
+				try {
+					task();
+					events.runPromised(() -> resolve());
+				} catch (e)
+					events.runPromised(() -> reject(e));
+			});
+			events.promise();
+			#else
+			task();
+			resolve();
+			#end
+		});
 	}
 
 	#if macro
