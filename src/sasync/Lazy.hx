@@ -113,14 +113,14 @@ class Lazy<T:Any> {
 
 	function throwError(error:Exception) {
 		var pos = callstack.shift();
-		Log.trace('Uncaught exception $error in ${pos.className}.${pos.methodName}', Log.Red, Log.ERROR, pos);
+		Log.trace('Uncaught exception $error in ${pos.className}.${pos.methodName}', ERROR, pos);
 		while (callstack.length > 0) {
 			var pos = callstack.shift();
 			var next = callstack.shift();
 			if (next != null)
-				Log.trace('Called from ${next.className}.${next.methodName}', Log.Red, Log.ERROR, pos);
+				Log.trace('Called from ${next.className}.${next.methodName}', ERROR, pos);
 			else
-				Log.trace('Called from here', Log.Red, Log.ERROR, pos);
+				Log.trace('Called from here', ERROR, pos);
 		}
 	}
 }
