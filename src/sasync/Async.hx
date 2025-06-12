@@ -111,12 +111,6 @@ class Async {
 			f.ret = macro :sasync.Lazy<$fret>;
 		}
 
-		f.args.push({
-			name: "__pos__",
-			opt: true,
-			type: macro :haxe.PosInfos
-		});
-
 		if (!isAbstract && f.expr != null) {
 			var i = ++futureIndex;
 			var resName = '__res${i}__';
@@ -129,7 +123,7 @@ class Async {
 			else {
 				f.expr = t.transformed ? t.expr : concat(t.expr, macro $resRef());
 				f.expr = transform(f.expr).expr;
-				f.expr = macro return new sasync.Lazy(($resName, $rejName) -> ${f.expr}, __pos__);
+				f.expr = macro return new sasync.Lazy(($resName, $rejName) -> ${f.expr});
 			}
 		}
 	}

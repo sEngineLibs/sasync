@@ -1,7 +1,6 @@
 package sasync;
 
 import haxe.Exception;
-import slog.Log;
 
 enum Status<T> {
 	Pending;
@@ -17,8 +16,7 @@ class Lazy<T:Any> {
 
 	public var status(default, null):Status<T> = Pending;
 
-	public function new(task:(?T->Void, Exception->Void)->Void, ?pos:haxe.PosInfos) {
-		callstack.push(pos);
+	public function new(task:(?T->Void, Exception->Void)->Void) {
 		#if (flash || js)
 		var id = null;
 		#elseif (target.threaded && !cppia)
@@ -81,7 +79,6 @@ class Lazy<T:Any> {
 		switch status {
 			case Pending:
 				status = Resolved(value);
-				callstack.pop();
 				handleResolve(value);
 			default:
 		}
@@ -108,21 +105,6 @@ class Lazy<T:Any> {
 		if (onRejected != null)
 			onRejected(e);
 		else
-			throwError(e);
-	}
-
-	function throwError(error:Exception) {
-		var pos = callstack.shift();
-		Log.trace('Uncaught exception $error in ${pos.className}.${pos.methodName}', ERROR, pos);
-		while (callstack.length > 0) {
-			var pos = callstack.shift();
-			var next = callstack.shift();
-			if (next != null)
-				Log.trace('Called from ${next.className}.${next.methodName}', ERROR, pos);
-			else
-				Log.trace('Called from here', ERROR, pos);
-		}
+			throw e;
 	}
 }
-
-private var callstack:Array<haxe.PosInfos> = [];
