@@ -1,6 +1,6 @@
 {
     "name": "sasync",
-    "url": "https://github.com/sEngineLibs/sasync",
+    "url": "https://github.com/selibs/sasync",
     "license": "Apache",
     "tags": ["async", "sugar"],
     "version": "0.1.5",

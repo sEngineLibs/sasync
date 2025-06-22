@@ -91,7 +91,7 @@ class Async {
 			#else
 			resolve(task());
 			#end
-		});
+		}, false);
 	}
 
 	/**
@@ -117,7 +117,7 @@ class Async {
 			task();
 			resolve();
 			#end
-		});
+		}, false);
 	}
 
 	#if macro

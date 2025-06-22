@@ -16,51 +16,54 @@ class Lazy<T:Any> {
 
 	public var status(default, null):Status<T> = Pending;
 
-	public function new(task:(?T->Void, Exception->Void)->Void) {
-		#if (flash || js)
-		var id = null;
-		#elseif (target.threaded && !cppia)
-		var thread:sys.thread.Thread = null;
-		var eventHandler = null;
-		#else
-		var event:haxe.MainEvent = null;
-		#end
-		var run = () -> {
+	public function new(task:(?T->Void, Exception->Void)->Void, delay:Bool = true) {
+		if (delay) {
 			#if (flash || js)
-			if (id == null)
-				return;
-			#if flash
-			untyped __global__["flash.utils.clearInterval"](id);
-			#elseif js
-			untyped clearInterval(id);
-			#end
-			id = null;
+			var id = null;
 			#elseif (target.threaded && !cppia)
-			thread.events.cancel(eventHandler);
+			var events:sys.thread.EventLoop = null;
+			var eventHandler = null;
 			#else
-			if (event != null) {
-				event.stop();
-				event = null;
-			}
+			var event:haxe.MainEvent = null;
 			#end
-			try {
-				task(resolve, reject);
-			} catch (e)
-				reject(e);
-		}
-		#if flash
-		id = untyped __global__["flash.utils.setInterval"](run, 0);
-		#elseif js
-		id = untyped setInterval(run, 0);
-		#elseif (target.threaded && !cppia)
-		thread = sys.thread.Thread.current();
-		if (thread.events == null)
-			throw new LazyError("Can't run Lazy in a thread with no event loop");
-		eventHandler = thread.events.repeat(run, 0);
-		#else
-		event = haxe.MainLoop.add(run);
-		event.delay(0);
-		#end
+			var run = () -> {
+				#if (flash || js)
+				if (id == null)
+					return;
+				#if flash
+				untyped __global__["flash.utils.clearInterval"](id);
+				#elseif js
+				untyped clearInterval(id);
+				#end
+				id = null;
+				#elseif (target.threaded && !cppia)
+				events.cancel(eventHandler);
+				#else
+				if (event != null) {
+					event.stop();
+					event = null;
+				}
+				#end
+				try {
+					task(resolve, reject);
+				} catch (e)
+					reject(e);
+			}
+			#if flash
+			id = untyped __global__["flash.utils.setInterval"](run, 0);
+			#elseif js
+			id = untyped setInterval(run, 0);
+			#elseif (target.threaded && !cppia)
+			events = sys.thread.Thread.current().events;
+			if (events == null)
+				throw new LazyError("Can't run Lazy in a thread with no event loop");
+			eventHandler = events.repeat(run, 0);
+			#else
+			event = haxe.MainLoop.add(run);
+			event.delay(0);
+			#end
+		} else
+			task(resolve, reject);
 	}
 
 	public function handle(onResolved:T->Void, ?onRejected:Exception->Void) {
